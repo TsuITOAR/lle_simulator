@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Hello wasm-pack!</title>
+    <style>
+        .plot {
+            background-color: #ccc;
+        }
+
+        .control {
+            background-color: #f1f1f1;
+        }
+
+        .column {
+            float: left;
+            min-width: 640px;
+            width: 50%;
+            padding: auto;
+            flex: 1;
+        }
+
+        .row {
+            display: flex
+        }
+
+        /* Clear floats after the columns */
+        .row:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+
+        @media screen and (max-width:640px) {
+            .column {
+                width: 100%;
+            }
+
+            .row {
+                display: block;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="row">
+        <div class="plot column"><canvas id="plot"></canvas></div>
+        <div class="control column"><input id="input" type="number">
+            <button type="button" id="but1">Get Value</button>
+        </div>
+    </div>
+    <noscript>This page contains webassembly and javascript content, please enable javascript in your
+        browser.</noscript>
+    <script src="./bootstrap.js"></script>
+</body>
+
+</html>
