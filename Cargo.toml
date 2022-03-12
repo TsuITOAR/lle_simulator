@@ -12,7 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 wasm-bindgen = "0.2.63"
-
+lle = { git = "https://github.com/TsuITOAR/Lle" }
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
@@ -28,9 +28,7 @@ wee_alloc = { version = "0.4.5", optional = true }
 
 [dependencies.web-sys]
 version = "*"
-features = [
-  "console",
-]
+features = ["console"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

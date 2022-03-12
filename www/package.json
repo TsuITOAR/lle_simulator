@@ -27,7 +27,7 @@
     },
     "homepage": "https://github.com/rustwasm/create-wasm-app#readme",
     "dependencies": {
-        "chart.js": "^3.7.1",
+        "plotly.js-dist-min": "^2.11.0",
         "wasm-lle": "file:../pkg"
     },
     "devDependencies": {
