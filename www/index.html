@@ -1,16 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
     <title>Hello wasm-pack!</title>
     <style>
+        div {
+            text-align: center;
+        }
+
         .plot {
             background-color: #ccc;
         }
 
         .control {
             background-color: #f1f1f1;
+            display: grid;
         }
 
         .column {
@@ -22,7 +27,7 @@
         }
 
         .row {
-            display: flex
+            display: flex;
         }
 
         /* Clear floats after the columns */
@@ -41,17 +46,117 @@
                 display: block;
             }
         }
+
+        .gadget {
+            text-align: left;
+            margin: 5px;
+        }
+
+        .bound {
+            width: 8ch;
+            margin: 5px;
+            min-width: 5%;
+        }
+
+        .bar {
+            max-width: 70%;
+            width: 80ch;
+        }
+
+        .desc {
+            width: 30%;
+            display: inline-block;
+            margin: 5px;
+            text-align: right;
+        }
+
+        .slide {
+            text-align: center;
+        }
+
+        .pname {
+            margin: 5px;
+            text-align: right;
+        }
+
+        .run {
+            margin: 5px;
+            text-align: center;
+            display: inline-block;
+        }
     </style>
 </head>
 
 <body>
     <div class="row">
         <div class="plot column">
-            <div id="plot" style="margin: auto;"></div>
+            <div id="plot" style="margin: auto;display: flex;"></div>
         </div>
-        <div class="control column"><input id="input" type="number">
-            <button type="button" id="but1">Get Value</button>
+        <div class="control column">
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        alpha:
+                    </label>
+                    <input class="bound" id="alpha_c" type="text">
+                </div>
+                <div class="slide">
+                    <input class="bound" id="alpha_l" type="text">
+                    <input class="bar" id="alpha" type="range" step="any">
+                    <input class="bound" id="alpha_h" type="text">
+                </div>
+            </div>
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        pump:
+                    </label>
+                    <input class="bound" id="pump_c" type="text">
+                </div>
+                <div class="slide">
+                    <input class="bound" id="pump_l" type="text">
+                    <input class="bar" id="pump" type="range" step="any">
+                    <input class="bound" id="pump_h" type="text">
+                </div>
+            </div>
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        linear:
+                    </label>
+                    <input class="bound" id="linear_c" type="text">
+                </div>
+                <div class="slide">
+                    <input class="bound" id="linear_l" type="text">
+                    <input class="bar" id="linear" type="range" step="any">
+                    <input class="bound" id="linear_h" type="text">
+                </div>
+            </div>
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        record step:
+                    </label>
+                    <input class="bound" id="record_step" type="text">
+                </div>
+            </div>
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        simulation step:
+                    </label>
+                    <input class="bound" id="simu_step" type="text">
+                </div>
+
+            </div>
+            <div class="run">
+                <button id="play-pause" style="margin:auto;width: 100px;  height: 50px;font-size: 20px;">Play</button>
+                <button id="step" style="margin:auto;width: 100px;  height: 50px;font-size: 20px;">Step</button>
+            </div>
         </div>
+    </div>
+    <div>
+
     </div>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your
         browser.</noscript>

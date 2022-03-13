@@ -1,5 +1,7 @@
 mod utils;
 
+use std::f64::consts::PI;
+
 use lle::{num_complex::Complex64, Evolver, LinearOp, LleSolver};
 use wasm_bindgen::prelude::*;
 
@@ -57,14 +59,14 @@ impl Worker {
         utils::set_panic_hook();
         Worker {
             core: LleSolver::new(
-                [Complex64::new(1., 0.); 128],
+                [Complex64::new(0., 0.); 128],
                 STEP_DIST,
                 (0, -(Complex64::i() * ALPHA + 1.)).add((2, -Complex64::i() * LINEAR / 2.)),
                 Box::new(|x: Complex64| Complex64::i() * x.norm_sqr())
                     as Box<dyn Fn(Complex64) -> Complex64>,
                 Complex64::from(PUMP),
             ),
-            shell: [1.; 128],
+            shell: [0.; 128],
             property: WorkerProperty {
                 alpha: ALPHA,
                 linear: LINEAR,
@@ -113,12 +115,16 @@ impl Worker {
         }
     }
     pub fn tick(&mut self) {
-        log!("updating state in rust");
+        use rand::Rng;
+        let mut rand = rand::thread_rng();
+        self.core.state_mut().iter_mut().for_each(|x| {
+            *x += (Complex64::i() * rand.gen::<f64>() * 2. * PI).exp()
+                * (-(rand.gen::<f64>() * 1e5).powi(2)).exp()
+        });
         self.core.evolve_n(self.property.record_step);
         self.shell
             .iter_mut()
             .zip(self.core.state().iter())
             .for_each(|(a, b)| *a = b.re);
-        log!("updated state in rust");
     }
 }
