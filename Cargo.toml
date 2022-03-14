@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["ITOAR <itoar@outlook.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/TsuITOAR/lle_simulator"
+description = "Lugiato-Lefever Equation Simulator use Rust & WebAssembly"
+
 
 [lib]
 crate-type = ["cdylib", "rlib"]

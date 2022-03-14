@@ -1,5 +1,5 @@
-import { Worker, WorkerProperty } from "wasm-lle";
-import { memory } from "wasm-lle/wasm_lle_bg"
+import { Worker, WorkerProperty } from "lle-simulator";
+import { memory } from "lle-simulator/lle_simulator_bg"
 import Plotly from 'plotly.js-dist-min'
 
 const worker = Worker.new();

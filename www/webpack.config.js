@@ -1,4 +1,3 @@
-const CopyWebpackPlugin = require("copy-webpack-plugin");
 const WasmPackWatcherPlugin = require('wasm-pack-watcher-plugin')
 const path = require('path');
 
