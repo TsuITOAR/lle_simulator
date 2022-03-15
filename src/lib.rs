@@ -1,10 +1,11 @@
+mod plot;
 mod utils;
 
 use std::f64::consts::PI;
 
 use lle::{num_complex::Complex64, Evolver, LinearOp, LleSolver};
 use wasm_bindgen::prelude::*;
-
+pub type DrawResult<T> = Result<T, Box<dyn std::error::Error>>;
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
 #[cfg(feature = "wee_alloc")]
@@ -38,6 +39,24 @@ pub struct Worker {
     property: WorkerProperty,
     history: Vec<[f64; SHELL_LEN]>,
     history_ind: usize,
+}
+
+#[wasm_bindgen]
+pub struct CursorPos {
+    convert: Box<dyn Fn((i32, i32)) -> Option<(f64, f64)>>,
+}
+
+#[wasm_bindgen]
+impl CursorPos {
+    pub fn coord(&self, x: i32, y: i32) -> Option<Point> {
+        (self.convert)((x, y)).map(|(x, y)| Point { x, y })
+    }
+}
+
+#[wasm_bindgen]
+pub struct Point {
+    pub x: f64,
+    pub y: f64,
 }
 
 #[wasm_bindgen]
@@ -143,7 +162,7 @@ impl Worker {
             }
         }
     }
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self, canvas_id: &str) -> Result<CursorPos, JsValue> {
         use rand::Rng;
         let mut rand = rand::thread_rng();
         self.core.state_mut().iter_mut().for_each(|x| {
@@ -157,5 +176,9 @@ impl Worker {
             .for_each(|(a, b)| *a = b.re);
         self.history[self.history_ind] = self.shell;
         self.history_ind = (self.history_ind + 1) % self.history.len();
+        let map_coord = self.draw(canvas_id).map_err(|err| err.to_string())?;
+        Ok(CursorPos {
+            convert: Box::new(move |coord| map_coord(coord).map(|(x, y)| (x.into(), y.into()))),
+        })
     }
 }

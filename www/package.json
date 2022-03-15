@@ -18,7 +18,6 @@
     ],
     "license": "(MIT OR Apache-2.0)",
     "dependencies": {
-        "plotly.js-dist-min": "^2.11.0",
         "lle-simulator": "file:../pkg"
     },
     "devDependencies": {

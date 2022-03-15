@@ -1,24 +1,11 @@
-import { Worker, WorkerProperty } from "lle-simulator";
-import { memory } from "lle-simulator/lle_simulator_bg"
-import Plotly from 'plotly.js-dist-min'
+import { Worker, WorkerProperty, CursorPos, Point } from "lle-simulator";
 
+const canvas = document.getElementById("plot");
 
-var inten = null;
-var worker = null;
-var history = [];
-var his_len;
-var state_len;
+var worker;
 
 const newWorker = () => {
     worker = Worker.new();
-    his_len = worker.history_len();
-    state_len = worker.state_len();
-    inten = new Float64Array(memory.buffer, worker.get_state(), state_len);
-
-    let history_buf = new Float64Array(memory.buffer, worker.get_history(), his_len * state_len);
-    for (let i = 0; i < his_len; ++i) {
-        history.push(history_buf.subarray(i * state_len, i * state_len + state_len));
-    }
 };
 
 
@@ -30,36 +17,8 @@ const setProperty = (name, value) => {
 };
 
 
-
-function newPlot() {
-    Plotly.newPlot(document.getElementById("plot"), [
-        {
-            y: inten
-        },
-        {
-            z: history,
-            type: 'heatmap',
-            transpose: true,
-            xaxis: 'x2',
-            yaxis: 'y2',
-        }
-    ], {
-        margin: { t: 0 },
-        grid: { rows: 1, columns: 2, pattern: 'independent' },
-    }, {
-        displaylogo: false
-    });
-}
-
-
 function updatePlot() {
-    Plotly.redraw(document.getElementById("plot"))
-}
-
-
-function updateDraw() {
-    worker.tick();
-    updatePlot();
+    worker.tick("plot");
 }
 
 let last = null;
@@ -76,6 +35,18 @@ function timer() {
     return parseInt(1 / (dt / 1000));
 }
 
+/** Setup canvas to properly handle high DPI and redraw current plot. */
+function setupCanvas() {
+    const dpr = window.devicePixelRatio || 1.0;
+    const aspectRatio = canvas.width / canvas.height;
+    const size = canvas.parentNode.offsetWidth * 0.8;
+    canvas.style.width = size + "px";
+    canvas.style.height = size / aspectRatio + "px";
+    canvas.width = size;
+    canvas.height = size / aspectRatio;
+    updatePlot();
+}
+
 
 let animationId = null;
 const isPaused = () => {
@@ -85,7 +56,7 @@ const isPaused = () => {
 
 
 const renderLoop = () => {
-    updateDraw();
+    updatePlot();
     document.getElementById("fps").textContent = "FPS:" + timer();
     animationId = requestAnimationFrame(renderLoop);
 };
@@ -108,7 +79,7 @@ const pause = () => {
 
 stepButton.onclick = () => {
     pause();
-    updateDraw();
+    updatePlot();
 }
 
 playPauseButton.onclick = (event => {
@@ -118,8 +89,10 @@ playPauseButton.onclick = (event => {
         pause();
     }
 });
+
+
 window.onload = function () {
-    newWorker();
+    newWorker(); setupCanvas();
     let property = getProperty();
     ["alpha", "pump", "linear"].forEach(function (name) {
         let lower = document.getElementById(name + "_l");
@@ -169,9 +142,9 @@ window.onload = function () {
             }
         })
     })
-    newPlot();
+    updatePlot();
     pause();
 }
 window.onresize = function () {
-    newPlot();
+    updatePlot();
 }
