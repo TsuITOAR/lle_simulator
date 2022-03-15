@@ -2,7 +2,26 @@ import { Worker, WorkerProperty } from "lle-simulator";
 import { memory } from "lle-simulator/lle_simulator_bg"
 import Plotly from 'plotly.js-dist-min'
 
-const worker = Worker.new();
+
+var inten = null;
+var worker = null;
+var history = [];
+var his_len;
+var state_len;
+
+const newWorker = () => {
+    worker = Worker.new();
+    his_len = worker.history_len();
+    state_len = worker.state_len();
+    inten = new Float64Array(memory.buffer, worker.get_state(), state_len);
+
+    let history_buf = new Float64Array(memory.buffer, worker.get_history(), his_len * state_len);
+    for (let i = 0; i < his_len; ++i) {
+        history.push(history_buf.subarray(i * state_len, i * state_len + state_len));
+    }
+};
+
+
 const getProperty = () => {
     return worker.get_property();
 };
@@ -10,33 +29,51 @@ const setProperty = (name, value) => {
     worker.set_property(name, value);
 };
 
-setProperty("record_step", 1000);
 
-const getData = () => {
-    let data = new Float64Array(memory.buffer, worker.get_state(), worker.get_len());
-    return data;
+
+function newPlot() {
+    Plotly.newPlot(document.getElementById("plot"), [
+        {
+            y: inten
+        },
+        {
+            z: history,
+            type: 'heatmap',
+            transpose: true,
+            xaxis: 'x2',
+            yaxis: 'y2',
+        }
+    ], {
+        margin: { t: 0 },
+        grid: { rows: 1, columns: 2, pattern: 'independent' },
+    }, {
+        displaylogo: false
+    });
 }
 
 
-
-
-const updatePlot = () => {
-    Plotly.react(document.getElementById("plot"), [{
-        y: getData()
-    }])
+function updatePlot() {
+    Plotly.redraw(document.getElementById("plot"))
 }
 
-const newPlot = () => {
-    Plotly.newPlot(document.getElementById("plot"), [{
-        y: getData()
-    }], {
-        margin: { t: 0 }
-    }, { displaylogo: false });
-}
 
-const updateDraw = () => {
+function updateDraw() {
     worker.tick();
-    updatePlot()
+    updatePlot();
+}
+
+let last = null;
+
+function timer() {
+    var dt;
+    var now = new Date().getTime();
+    if (last == null) { dt = 1 }
+    else {
+        dt = now - last;
+    }
+    last = now;
+
+    return parseInt(1 / (dt / 1000));
 }
 
 
@@ -44,15 +81,22 @@ let animationId = null;
 const isPaused = () => {
     return animationId === null;
 };
+
+
+
 const renderLoop = () => {
-    updateDraw()
+    updateDraw();
+    document.getElementById("fps").textContent = "FPS:" + timer();
     animationId = requestAnimationFrame(renderLoop);
 };
+
+
 const playPauseButton = document.getElementById("play-pause");
 const stepButton = document.getElementById("step");
 
 const play = () => {
     playPauseButton.textContent = "Pause";
+    timer();
     renderLoop();
 };
 
@@ -75,6 +119,7 @@ playPauseButton.onclick = (event => {
     }
 });
 window.onload = function () {
+    newWorker();
     let property = getProperty();
     ["alpha", "pump", "linear"].forEach(function (name) {
         let lower = document.getElementById(name + "_l");
@@ -104,12 +149,10 @@ window.onload = function () {
                 bar.value = current.value;
                 setProperty(name, current.value);
                 if (parseFloat(lower.value) > parseFloat(current.value)) {
-                    console.log("resetting lower limit from", lower.value, "to", current.value);
                     lower.value = current.value;
                     bar.min = current.value;
                 }
                 if (parseFloat(current.value) > parseFloat(higher.value)) {
-                    console.log("resetting higher limit from", higher.value, "to", current.value);
                     higher.value = current.value;
                     bar.max = current.value;
                 }

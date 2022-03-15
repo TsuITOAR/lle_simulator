@@ -31,11 +31,13 @@ pub fn greet() {
 pub struct Worker {
     core: LleSolver<
         f64,
-        [Complex64; 128],
+        [Complex64; SHELL_LEN],
         lle::LinearOpAdd<(lle::DiffOrder, Complex64), (lle::DiffOrder, Complex64)>,
     >,
-    shell: [f64; 128],
+    shell: [f64; SHELL_LEN],
     property: WorkerProperty,
+    history: Vec<[f64; SHELL_LEN]>,
+    history_ind: usize,
 }
 
 #[wasm_bindgen]
@@ -48,6 +50,8 @@ pub struct WorkerProperty {
     pub simu_step: f64,
 }
 
+const SHELL_LEN: usize = 128;
+
 #[wasm_bindgen]
 impl Worker {
     pub fn new() -> Self {
@@ -56,17 +60,29 @@ impl Worker {
         const LINEAR: f64 = -0.0444;
         const ALPHA: f64 = -5.;
         use lle::LinearOp;
+        use rand::Rng;
         utils::set_panic_hook();
+        let mut rand = rand::thread_rng();
+        let mut init = [Complex64::new(0., 0.); SHELL_LEN];
+        init.iter_mut().for_each(|x| {
+            *x = (Complex64::i() * rand.gen::<f64>() * 2. * PI).exp()
+                * (-(rand.gen::<f64>() * 1e5).powi(2)).exp()
+        });
+        let mut shell = [0.; SHELL_LEN];
+        shell
+            .iter_mut()
+            .zip(init.iter())
+            .for_each(|(a, b)| *a = b.re);
         Worker {
             core: LleSolver::new(
-                [Complex64::new(0., 0.); 128],
+                [Complex64::new(0., 0.); SHELL_LEN],
                 STEP_DIST,
                 (0, -(Complex64::i() * ALPHA + 1.)).add((2, -Complex64::i() * LINEAR / 2.)),
                 Box::new(|x: Complex64| Complex64::i() * x.norm_sqr())
                     as Box<dyn Fn(Complex64) -> Complex64>,
                 Complex64::from(PUMP),
             ),
-            shell: [0.; 128],
+            shell: [0.; SHELL_LEN],
             property: WorkerProperty {
                 alpha: ALPHA,
                 linear: LINEAR,
@@ -74,6 +90,8 @@ impl Worker {
                 record_step: 100,
                 simu_step: STEP_DIST,
             },
+            history: vec![[0.; SHELL_LEN]; 100],
+            history_ind: 0,
         }
     }
     pub fn get_property(&self) -> WorkerProperty {
@@ -82,8 +100,19 @@ impl Worker {
     pub fn get_state(&self) -> *const f64 {
         self.shell.as_ptr()
     }
-    pub fn get_len(&self) -> usize {
+    pub fn state_len(&self) -> usize {
         self.shell.len()
+    }
+    pub fn history_len(&self) -> usize {
+        self.history.len().max(1)
+    }
+    pub fn get_history(&self) -> *const f64 {
+        self.history
+            .first()
+            .map_or(self.shell.as_ptr(), |x| x.as_ptr())
+    }
+    pub fn set_history_len(&mut self, new_len: usize) {
+        self.history.resize(new_len, [0.; SHELL_LEN])
     }
     pub fn set_property(&mut self, property: String, value: f64) {
         match property.as_str() {
@@ -126,5 +155,7 @@ impl Worker {
             .iter_mut()
             .zip(self.core.state().iter())
             .for_each(|(a, b)| *a = b.re);
+        self.history[self.history_ind] = self.shell;
+        self.history_ind = (self.history_ind + 1) % self.history.len();
     }
 }
