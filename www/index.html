@@ -11,6 +11,7 @@
 
         .plot {
             background-color: #ccc;
+            width: 100%;
         }
 
         .control {
@@ -28,6 +29,7 @@
 
         .row {
             display: flex;
+            max-height: 40%;
         }
 
         /* Clear floats after the columns */
@@ -84,18 +86,21 @@
             text-align: center;
             display: inline-block;
         }
+
+        canvas {
+            margin: auto;
+            display: flex;
+            width: 100%;
+            height: 100%;
+
+        }
     </style>
 </head>
 
 <body>
     <div class="row">
         <div class="plot column">
-            <canvas id="plot" style="
-                margin: auto;
-                display: flex;
-                width: 100%;
-                height: 100%;
-                "></canvas>
+            <canvas id="plot"></canvas>
         </div>
         <div class="control column">
             <div class="gadget">
@@ -161,8 +166,8 @@
             </div>
         </div>
     </div>
-    <div class="row">
-        <div id="history" class="plot"></div>
+    <div class="row" style="max-height: 10%;">
+        <canvas id="map"></canvas>
     </div>
 
     <noscript>This page contains webassembly and javascript content, please enable javascript in your

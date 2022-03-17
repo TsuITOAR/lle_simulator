@@ -1,11 +1,10 @@
 import { Worker, WorkerProperty, CursorPos, Point } from "lle-simulator";
 
-const canvas = document.getElementById("plot");
 
 var worker;
 
 const newWorker = () => {
-    worker = Worker.new("plot");
+    worker = Worker.new("plot","map");
 };
 
 
@@ -37,13 +36,17 @@ function timer() {
 
 /** Setup canvas to properly handle high DPI and redraw current plot. */
 function setupCanvas() {
-    const dpr = window.devicePixelRatio || 1.0;
-    const aspectRatio = canvas.width / canvas.height;
-    const size = canvas.parentNode.offsetWidth * 0.8;
-    canvas.style.width = size + "px";
-    canvas.style.height = size / aspectRatio + "px";
-    canvas.width = size;
-    canvas.height = size / aspectRatio;
+    ["plot", "map"].forEach((name) => {
+        const canvas = document.getElementById(name);
+        const dpr = window.devicePixelRatio || 1.0;
+        const aspectRatio = canvas.width / canvas.height;
+        const size = canvas.parentNode.offsetWidth * 0.8;
+        canvas.style.width = size + "px";
+        canvas.style.height = size / aspectRatio + "px";
+        canvas.width = size;
+        canvas.height = size / aspectRatio;
+    })
+
 }
 
 
@@ -142,7 +145,7 @@ window.onload = function () {
             }
         })
     })
-    updatePlot();
+    //updatePlot();
     pause();
 }
 window.onresize = function () {

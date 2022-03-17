@@ -3,7 +3,7 @@ mod utils;
 
 use std::f64::consts::PI;
 
-use jkplot::Animator;
+use jkplot::{Animator, ColorMapVisualizer};
 use lle::{num_complex::Complex64, Evolver, LinearOp, LleSolver};
 use plotters_canvas::CanvasBackend;
 use wasm_bindgen::prelude::*;
@@ -39,6 +39,7 @@ pub struct Worker {
     >,
     property: WorkerProperty,
     animator: Animator<CanvasBackend>,
+    history: ColorMapVisualizer<CanvasBackend>,
 }
 
 #[wasm_bindgen]
@@ -73,7 +74,7 @@ const SHELL_LEN: usize = 128;
 
 #[wasm_bindgen]
 impl Worker {
-    pub fn new(canvas_id: &str) -> Self {
+    pub fn new(plot_id: &str, map_id: &str) -> Self {
         const STEP_DIST: f64 = 8e-4;
         const PUMP: f64 = 3.94;
         const LINEAR: f64 = -0.0444;
@@ -87,14 +88,12 @@ impl Worker {
             *x = (Complex64::i() * rand.gen::<f64>() * 2. * PI).exp()
                 * (-(rand.gen::<f64>() * 1e5).powi(2)).exp()
         });
-        let mut shell = [0.; SHELL_LEN];
-        shell
-            .iter_mut()
-            .zip(init.iter())
-            .for_each(|(a, b)| *a = b.re);
         let mut animator =
-            Animator::on_backend(CanvasBackend::new(canvas_id).expect("cannot find canvas"));
+            Animator::on_backend(CanvasBackend::new(plot_id).expect("cannot find canvas"));
         animator.set_min_y_range(1e-4);
+        let mut history =
+            ColorMapVisualizer::on_backend(CanvasBackend::new(map_id).expect("cannot find canvas"));
+        history.push(init.iter().map(|x| x.re).collect());
         Worker {
             core: LleSolver::new(
                 [Complex64::new(0., 0.); SHELL_LEN],
@@ -112,6 +111,7 @@ impl Worker {
                 simu_step: STEP_DIST,
             },
             animator,
+            history,
         }
     }
     pub fn get_property(&self) -> WorkerProperty {
