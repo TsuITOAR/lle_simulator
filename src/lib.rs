@@ -3,7 +3,9 @@ mod utils;
 
 use std::f64::consts::PI;
 
+use jkplot::Animator;
 use lle::{num_complex::Complex64, Evolver, LinearOp, LleSolver};
+use plotters_canvas::CanvasBackend;
 use wasm_bindgen::prelude::*;
 pub type DrawResult<T> = Result<T, Box<dyn std::error::Error>>;
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -35,10 +37,8 @@ pub struct Worker {
         [Complex64; SHELL_LEN],
         lle::LinearOpAdd<(lle::DiffOrder, Complex64), (lle::DiffOrder, Complex64)>,
     >,
-    shell: [f64; SHELL_LEN],
     property: WorkerProperty,
-    history: Vec<[f64; SHELL_LEN]>,
-    history_ind: usize,
+    animator: Animator<CanvasBackend>,
 }
 
 #[wasm_bindgen]
@@ -73,7 +73,7 @@ const SHELL_LEN: usize = 128;
 
 #[wasm_bindgen]
 impl Worker {
-    pub fn new() -> Self {
+    pub fn new(canvas_id: &str) -> Self {
         const STEP_DIST: f64 = 8e-4;
         const PUMP: f64 = 3.94;
         const LINEAR: f64 = -0.0444;
@@ -92,6 +92,9 @@ impl Worker {
             .iter_mut()
             .zip(init.iter())
             .for_each(|(a, b)| *a = b.re);
+        let mut animator =
+            Animator::on_backend(CanvasBackend::new(canvas_id).expect("cannot find canvas"));
+        animator.set_min_y_range(1e-4);
         Worker {
             core: LleSolver::new(
                 [Complex64::new(0., 0.); SHELL_LEN],
@@ -101,7 +104,6 @@ impl Worker {
                     as Box<dyn Fn(Complex64) -> Complex64>,
                 Complex64::from(PUMP),
             ),
-            shell: [0.; SHELL_LEN],
             property: WorkerProperty {
                 alpha: ALPHA,
                 linear: LINEAR,
@@ -109,29 +111,11 @@ impl Worker {
                 record_step: 100,
                 simu_step: STEP_DIST,
             },
-            history: vec![[0.; SHELL_LEN]; 100],
-            history_ind: 0,
+            animator,
         }
     }
     pub fn get_property(&self) -> WorkerProperty {
         self.property
-    }
-    pub fn get_state(&self) -> *const f64 {
-        self.shell.as_ptr()
-    }
-    pub fn state_len(&self) -> usize {
-        self.shell.len()
-    }
-    pub fn history_len(&self) -> usize {
-        self.history.len().max(1)
-    }
-    pub fn get_history(&self) -> *const f64 {
-        self.history
-            .first()
-            .map_or(self.shell.as_ptr(), |x| x.as_ptr())
-    }
-    pub fn set_history_len(&mut self, new_len: usize) {
-        self.history.resize(new_len, [0.; SHELL_LEN])
     }
     pub fn set_property(&mut self, property: String, value: f64) {
         match property.as_str() {
@@ -162,7 +146,7 @@ impl Worker {
             }
         }
     }
-    pub fn tick(&mut self, canvas_id: &str) -> Result<CursorPos, JsValue> {
+    pub fn tick(&mut self) -> Result<CursorPos, JsValue> {
         use rand::Rng;
         let mut rand = rand::thread_rng();
         self.core.state_mut().iter_mut().for_each(|x| {
@@ -170,13 +154,14 @@ impl Worker {
                 * (-(rand.gen::<f64>() * 1e5).powi(2)).exp()
         });
         self.core.evolve_n(self.property.record_step);
-        self.shell
-            .iter_mut()
-            .zip(self.core.state().iter())
-            .for_each(|(a, b)| *a = b.re);
-        self.history[self.history_ind] = self.shell;
-        self.history_ind = (self.history_ind + 1) % self.history.len();
-        let map_coord = self.draw(canvas_id).map_err(|err| err.to_string())?;
+        let v: Vec<_> = self
+            .core
+            .state()
+            .iter()
+            .enumerate()
+            .map(|(x, y)| (x as f64, y.re))
+            .collect();
+        let map_coord = self.draw(v).map_err(|err| err.to_string())?;
         Ok(CursorPos {
             convert: Box::new(move |coord| map_coord(coord).map(|(x, y)| (x.into(), y.into()))),
         })

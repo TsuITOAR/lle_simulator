@@ -32,6 +32,7 @@ wee_alloc = { version = "0.4.5", optional = true }
 rand = { version = "^0.7", features = ["wasm-bindgen"] }
 plotters = "^0.3"
 plotters-canvas = "^0.3.*"
+jkplot = { path="../jkplot" }
 
 [dependencies.web-sys]
 version = "*"

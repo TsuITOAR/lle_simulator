@@ -5,7 +5,7 @@ const canvas = document.getElementById("plot");
 var worker;
 
 const newWorker = () => {
-    worker = Worker.new();
+    worker = Worker.new("plot");
 };
 
 
@@ -18,7 +18,7 @@ const setProperty = (name, value) => {
 
 
 function updatePlot() {
-    worker.tick("plot");
+    worker.tick();
 }
 
 let last = null;
@@ -44,7 +44,6 @@ function setupCanvas() {
     canvas.style.height = size / aspectRatio + "px";
     canvas.width = size;
     canvas.height = size / aspectRatio;
-    updatePlot();
 }
 
 
@@ -92,7 +91,8 @@ playPauseButton.onclick = (event => {
 
 
 window.onload = function () {
-    newWorker(); setupCanvas();
+    setupCanvas();
+    newWorker();
     let property = getProperty();
     ["alpha", "pump", "linear"].forEach(function (name) {
         let lower = document.getElementById(name + "_l");
