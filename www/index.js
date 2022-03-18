@@ -145,7 +145,7 @@ window.onload = function () {
             }
         })
     })
-    //updatePlot();
+    updatePlot();
     pause();
 }
 window.onresize = function () {

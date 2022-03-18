@@ -5,7 +5,7 @@ impl super::Worker {
         s: Vec<(f64, f64)>,
     ) -> DrawResult<impl Fn((i32, i32)) -> Option<(f64, f64)>> {
         self.history.push(s.iter().map(|x| x.1).collect());
-        self.history.draw()?;
+        let _s=self.history.draw()?;
         Ok(self.animator.new_frame(s)?)
     }
 }

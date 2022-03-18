@@ -91,9 +91,8 @@ impl Worker {
         let mut animator =
             Animator::on_backend(CanvasBackend::new(plot_id).expect("cannot find canvas"));
         animator.set_min_y_range(1e-4);
-        let mut history =
+        let history =
             ColorMapVisualizer::on_backend(CanvasBackend::new(map_id).expect("cannot find canvas"));
-        history.push(init.iter().map(|x| x.re).collect());
         Worker {
             core: LleSolver::new(
                 [Complex64::new(0., 0.); SHELL_LEN],
