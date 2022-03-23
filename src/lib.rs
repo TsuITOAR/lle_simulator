@@ -14,20 +14,14 @@ pub type DrawResult<T> = Result<T, Box<dyn std::error::Error>>;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+pub use jkplot::init_thread_pool;
+
 #[allow(unused)]
+#[macro_export]
 macro_rules! log {
     ( $( $t:tt )* ) => {
         web_sys::console::log_1(&format!( $( $t )* ).into());
     }
-}
-#[wasm_bindgen]
-extern "C" {
-    fn alert(s: &str);
-}
-
-#[wasm_bindgen]
-pub fn greet() {
-    alert("Hello, wasm-lle!");
 }
 
 #[wasm_bindgen]

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Lugiato-Lefever Equation Simulator</title>
+    <style>
+        div {
+            text-align: center;
+        }
+
+        .plot {
+            background-color: #ccc;
+            width: 100%;
+        }
+
+        .control {
+            background-color: #f1f1f1;
+            display: grid;
+        }
+
+        .column {
+            float: left;
+            min-width: 640px;
+            width: 50%;
+            padding: auto;
+            flex: 1;
+        }
+
+        .row {
+            display: flex;
+            max-height: 40%;
+        }
+
+        /* Clear floats after the columns */
+        .row:after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+
+        @media screen and (max-width:1080px) {
+            .column {
+                width: 100%;
+            }
+
+            .row {
+                display: block;
+            }
+        }
+
+        .gadget {
+            text-align: left;
+            margin: 5px;
+        }
+
+        .bound {
+            width: 8ch;
+            margin: 5px;
+            min-width: 5%;
+        }
+
+        .bar {
+            max-width: 70%;
+            width: 80ch;
+        }
+
+        .desc {
+            width: 30%;
+            display: inline-block;
+            margin: 5px;
+            text-align: right;
+        }
+
+        .slide {
+            text-align: center;
+        }
+
+        .pname {
+            margin: 5px;
+            text-align: right;
+        }
+
+        .run {
+            margin: 5px;
+            text-align: center;
+            display: inline-block;
+        }
+
+        canvas {
+            margin: auto;
+            display: flex;
+            width: 100%;
+            height: 100%;
+
+        }
+    </style>
+</head>
+
+<body>
+    <link data-trunk rel="rust" data-wasm-opt="z" />
+    <link data-trunk rel="copy-file" type="js" href="/js/bootstrap.js" />
+    <link data-trunk rel="copy-file" type="js" href="/js/index.js" />
+    <div class="row">
+        <div class="plot column">
+            <canvas id="plot"></canvas>
+        </div>
+        <div class="control column">
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        alpha:
+                    </label>
+                    <input class="bound" id="alpha_c" type="text">
+                </div>
+                <div class="slide">
+                    <input class="bound" id="alpha_l" type="text">
+                    <input class="bar" id="alpha" type="range" step="any">
+                    <input class="bound" id="alpha_h" type="text">
+                </div>
+            </div>
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        pump:
+                    </label>
+                    <input class="bound" id="pump_c" type="text">
+                </div>
+                <div class="slide">
+                    <input class="bound" id="pump_l" type="text">
+                    <input class="bar" id="pump" type="range" step="any">
+                    <input class="bound" id="pump_h" type="text">
+                </div>
+            </div>
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        linear:
+                    </label>
+                    <input class="bound" id="linear_c" type="text">
+                </div>
+                <div class="slide">
+                    <input class="bound" id="linear_l" type="text">
+                    <input class="bar" id="linear" type="range" step="any">
+                    <input class="bound" id="linear_h" type="text">
+                </div>
+            </div>
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        record step:
+                    </label>
+                    <input class="bound" id="record_step" type="text">
+                </div>
+            </div>
+            <div class="gadget">
+                <div class="desc">
+                    <label class="pname">
+                        simulation step:
+                    </label>
+                    <input class="bound" id="simu_step" type="text">
+                </div>
+
+            </div>
+            <div class="run">
+                <button id="play-pause" style="margin:auto;width: 100px;  height: 50px;font-size: 20px;">Play</button>
+                <button id="step" style="margin:auto;width: 100px;  height: 50px;font-size: 20px;">Step</button>
+                <label id="fps" style="margin:auto;width: 100px;  height: 50px;font-size: 20px;">FPS:</label>
+            </div>
+        </div>
+    </div>
+    <div class="row" style="max-height: 10%;">
+        <canvas id="map" style="height: 300px;width: 1000px;"></canvas>
+    </div>
+
+    <noscript>This page contains webassembly and javascript content, please enable javascript in your
+        browser.</noscript>
+    <script src="./bootstrap.js"></script>
+</body>
+
+</html>

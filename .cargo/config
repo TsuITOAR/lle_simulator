@@ -1,2 +1,5 @@
-[build]
-# target-dir = "C:/Users/ITOAR/temp"
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+atomics,+bulk-memory,+mutable-globals"]
+
+[unstable]
+build-std = ["panic_abort", "std"]
