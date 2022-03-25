@@ -33,6 +33,7 @@ rand = { version = "^0.7", features = ["wasm-bindgen"] }
 plotters = "^0.3"
 plotters-canvas = "^0.3.*"
 jkplot = { path = "../jkplot", features = ["wasm"] }
+yew = "*"
 
 [dependencies.web-sys]
 version = "*"
