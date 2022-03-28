@@ -55,7 +55,7 @@ pub struct Point {
 }
 
 #[wasm_bindgen]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WorkerProperty {
     pub alpha: f64,
     pub pump: f64,
