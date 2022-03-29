@@ -78,28 +78,18 @@ impl Component for Control {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let ControlProps {
-            desc,
-            slide_bar,
-            id,
-            init: current,
-            call_back,
-        } = ctx.props();
+        let ControlProps { desc, id, init, .. } = ctx.props();
 
-        let link = ctx.link().clone();
-        let onchange = call_back.reform(move |e: web_sys::Event| {
+        let onchange = ctx.link().callback(move |e: web_sys::Event| {
             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
             let v = input.value_as_number();
-            link.send_message(SlideBarMessage::SetVal(v));
-            v
+            SlideBarMessage::SetVal(v)
         });
 
-        let link = ctx.link().clone();
-        let oninput = call_back.reform(move |e: InputEvent| {
+        let oninput = ctx.link().callback(move |e: InputEvent| {
             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
             let v = input.value_as_number();
-            link.send_message(SlideBarMessage::SetVal(v));
-            v
+            SlideBarMessage::SetVal(v)
         });
 
         let set_max = ctx.link().callback(|e: web_sys::Event| {
@@ -110,20 +100,19 @@ impl Component for Control {
             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
             SlideBarMessage::SetMin(input.value_as_number())
         });
-        let value = ctx.props().init;
-        let min = value - 5.;
-        let max = value + 5.;
+        let min = init - 5.;
+        let max = init + 5.;
         {
             if let Some(c) = self.range.as_ref() {
                 html! {
                     <div class="control">
                         <div class="desc">
                             <label for={id.clone()} class="item_label"> {desc} </label>
-                            <input class="current" id={id.clone()} type="number" value={value.to_string()} {onchange} ref={c.current.clone()}/>
+                            <input class="current" id={id.clone()} type="number" value={init.to_string()} {onchange} ref={c.current.clone()}/>
                         </div>
                         <div class="slide">
                             <input class="bound" id={format!("{}_min",id.clone())} type="number" onchange={set_min} value={min.to_string()}/>
-                            <input class="bar"   id={format!("{}_slide",id.clone())} type="range" step="any" min={min.to_string()} max={max.to_string()} value={value.to_string()} {oninput} ref={c.bar.clone()}/>
+                            <input class="bar"   id={format!("{}_slide",id.clone())} type="range" step="any" min={min.to_string()} max={max.to_string()} value={init.to_string()} {oninput} ref={c.bar.clone()}/>
                             <input class="bound" id={format!("{}_max",id.clone())} type="number" onchange={set_max} value={max.to_string()}/>
                         </div>
                     </div>
@@ -133,7 +122,7 @@ impl Component for Control {
                     <div class="control">
                             <div class="desc">
                                 <label for={id.clone()} class="item_label"> {desc} </label>
-                                <input class="current" id={id.clone()} type="number" value={value.to_string()} {onchange}/>
+                                <input class="current" id={id.clone()} type="number" value={init.to_string()} {onchange}/>
                             </div>
                     </div>
                 }
@@ -150,6 +139,7 @@ struct App {
     last_frame: Option<Instant>,
 }
 
+#[derive(Debug, Clone, Copy)]
 enum WorkerPara {
     Alpha(f64),
     Pump(f64),
@@ -169,7 +159,8 @@ impl Component for App {
             last_frame: None,
         }
     }
-    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
+        info!("{:?}", msg);
         false
     }
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
