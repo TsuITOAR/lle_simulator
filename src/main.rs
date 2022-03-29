@@ -1,14 +1,21 @@
 use lle_simulator::*;
+use log::info;
 use std::time::{Duration, Instant};
 use wasm_bindgen::prelude::*;
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
 const INPUT_BAR: &[&str] = &["alpha", "pump", "linear"];
 const INPUT_STATIC: &[&str] = &["record_step", "simu_step"];
 
+#[derive(Clone, Debug, Default)]
+struct Connection {
+    pub current: NodeRef,
+    pub bar: NodeRef,
+}
+
 struct Control {
-    value: Option<f64>,
-    range: Option<(f64, f64)>,
+    range: Option<Connection>,
 }
 
 #[derive(Debug, Clone, PartialEq, Properties)]
@@ -34,9 +41,40 @@ impl Component for Control {
 
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            value: None,
-            range: None,
+            range: ctx.props().slide_bar.then(|| Default::default()),
         }
+    }
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        log::info!("control updating");
+        use SlideBarMessage::*;
+        if let Some(c) = self.range.as_ref() {
+            match msg {
+                SetVal(v) => {
+                    c.bar
+                        .cast::<HtmlInputElement>()
+                        .expect("casting to input element")
+                        .set_value(&v.to_string());
+                    c.current
+                        .cast::<HtmlInputElement>()
+                        .expect("casting to input element")
+                        .set_value(&v.to_string());
+                    ctx.props().call_back.emit(v);
+                }
+                SetMin(min) => c
+                    .bar
+                    .cast::<HtmlInputElement>()
+                    .expect("casting to input element")
+                    .set_min(&min.to_string()),
+
+                SetMax(max) => c
+                    .bar
+                    .cast::<HtmlInputElement>()
+                    .expect("casting to input element")
+                    .set_max(&max.to_string()),
+            }
+        }
+
+        false
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
@@ -72,26 +110,34 @@ impl Component for Control {
             let input: web_sys::HtmlInputElement = e.target_unchecked_into();
             SlideBarMessage::SetMin(input.value_as_number())
         });
-
-        let min = self.range.map_or(current - 5., |r| r.0);
-        let max = self.range.map_or(current + 5., |r| r.1);
-        let value = self.value.unwrap_or(ctx.props().init);
-        html! {
-            <div class="control">
-                <label for={id.clone()} class="item_label"> {desc} </label>
-                <input class="current" id={id.clone()} type="text" value={value.to_string()} {onchange}/>
-                {if ctx.props().slide_bar{
-                    html!{
-                        <div class="slide">
-                            <input class="bound" id={format!("{}_min",id.clone())} type="text" onchange={set_min} value={min.to_string()}/>
-                            <input class="bar"   id={format!("{}_slide",id.clone())} type="range" step="any" min={min.to_string()} max={max.to_string()} value={value.to_string()} {oninput}/>
-                            <input class="bound" id={format!("{}_max",id.clone())} type="text" onchange={set_max} value={max.to_string()}/>
+        let value = ctx.props().init;
+        let min = value - 5.;
+        let max = value + 5.;
+        {
+            if let Some(c) = self.range.as_ref() {
+                html! {
+                    <div class="control">
+                        <div class="desc">
+                            <label for={id.clone()} class="item_label"> {desc} </label>
+                            <input class="current" id={id.clone()} type="number" value={value.to_string()} {onchange} ref={c.current.clone()}/>
                         </div>
-                    }
-                }else{
-                    html!{}
-                }}
-            </div>
+                        <div class="slide">
+                            <input class="bound" id={format!("{}_min",id.clone())} type="number" onchange={set_min} value={min.to_string()}/>
+                            <input class="bar"   id={format!("{}_slide",id.clone())} type="range" step="any" min={min.to_string()} max={max.to_string()} value={value.to_string()} {oninput} ref={c.bar.clone()}/>
+                            <input class="bound" id={format!("{}_max",id.clone())} type="number" onchange={set_max} value={max.to_string()}/>
+                        </div>
+                    </div>
+                }
+            } else {
+                html! {
+                    <div class="control">
+                            <div class="desc">
+                                <label for={id.clone()} class="item_label"> {desc} </label>
+                                <input class="current" id={id.clone()} type="number" value={value.to_string()} {onchange}/>
+                            </div>
+                    </div>
+                }
+            }
         }
     }
 }
@@ -124,7 +170,7 @@ impl Component for App {
         }
     }
     fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
-        true
+        false
     }
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
@@ -146,14 +192,16 @@ impl Component for App {
                         .iter()
                         .map(|x| html!{
                             <Control desc={*x} id={*x} slide_bar={true} init={1.} call_back={link.callback( WorkerPara::Alpha)}/>
-                        })
+                            }
+                        )
                         .collect::<Html>()
                     }
                     {INPUT_STATIC
                         .iter()
                         .map(|x| html!{
                             <Control desc={*x} id={*x} slide_bar={false} init={1.} call_back={link.callback( WorkerPara::Alpha)}/>
-                        })
+                            }
+                        )
                         .collect::<Html>()
                     }
                 </div>
@@ -163,10 +211,7 @@ impl Component for App {
 }
 
 fn main() {
-    use console_error_panic_hook::set_once as set_panic_hook;
-    use wasm_bindgen::prelude::*;
-    use web_sys::window;
-    set_panic_hook();
+    console_error_panic_hook::set_once();
+    console_log::init_with_level(log::Level::Debug).unwrap();
     yew::start_app_with_props::<App>(());
-    log!("running main in rust");
 }

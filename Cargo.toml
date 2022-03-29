@@ -34,6 +34,8 @@ plotters = "^0.3"
 plotters-canvas = "^0.3.*"
 jkplot = { path = "../jkplot", features = ["wasm"] }
 yew = "*"
+console_log = "*"
+log = "0.4"
 
 [dependencies.web-sys]
 version = "*"

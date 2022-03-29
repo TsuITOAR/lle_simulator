@@ -16,14 +16,6 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 pub use jkplot::init_thread_pool;
 
-#[allow(unused)]
-#[macro_export]
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
-    }
-}
-
 #[wasm_bindgen]
 pub struct Worker {
     core: LleSolver<
@@ -135,7 +127,7 @@ impl Worker {
                 self.property.simu_step = value;
             }
             s => {
-                log!("Unknown property {}", s);
+                log::warn!("Unknown property {}", s);
             }
         }
     }
