@@ -1,6 +1,7 @@
 use gloo_render::{request_animation_frame, AnimationFrame};
 use lle_simulator::*;
 use log::{error, info};
+use wasm_bindgen_futures::JsFuture;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
 
@@ -133,13 +134,13 @@ const PLOT_NAME: &str = "plot";
 const MAP_NAME: &str = "map";
 
 #[derive(Default)]
-struct App {
+struct LleSimulator {
     worker: Option<Worker>,
     last_frame: Option<f64>,
     _render_loop: Option<AnimationFrame>,
 }
 
-impl App {
+impl LleSimulator {
     fn render_image(&mut self, ctx: &Context<Self>) {
         if let Some(ref mut worker) = self.worker {
             worker.tick().expect("rendering image");
@@ -164,12 +165,12 @@ enum AppMessage {
     Draw(Option<f64>),
 }
 
-impl Component for App {
+impl Component for LleSimulator {
     type Message = AppMessage;
 
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Default::default()
     }
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
@@ -254,7 +255,7 @@ impl Component for App {
                     }
                     <div class="run">
                         <button id="play-pause" class="flow" onclick={pause}>{RUN}</button>
-                        <button id="step" class="flow" >{"Step"} </button>
+                        <button id="step" class="flow" onclick={step}>{"Step"} </button>
                         <label id="fps" class="flow">{"FPS:"}</label>
                     </div>
                 </div>
@@ -263,9 +264,53 @@ impl Component for App {
     }
 }
 
+pub use jkplot::init_thread_pool;
+struct App {
+    initialized: bool,
+}
+
+impl Component for App {
+    type Message = ();
+
+    type Properties = ();
+
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
+        if first_render {
+            ctx.link().send_future(async {
+                JsFuture::from(init_thread_pool(8))
+                    .await
+                    .expect("failed initializing thread pool");
+            });
+        }
+    }
+
+    fn create(ctx: &Context<Self>) -> Self {
+        Self { initialized: false }
+    }
+    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
+        if self.initialized {
+            error!("thread pool should only be initialize once")
+        } else {
+            self.initialized = true;
+        }
+        true
+    }
+
+    fn view(&self, _ctx: &Context<Self>) -> Html {
+        if self.initialized {
+            html! {
+                <LleSimulator/>
+            }
+        } else {
+            html! {
+                {"Initializing thread pool"}
+            }
+        }
+    }
+}
+
 fn main() {
     console_error_panic_hook::set_once();
-    console_log::init_with_level(log::Level::Debug).unwrap();
-    jkplot::init_thread_pool(4);
+    //console_log::init_with_level(log::Level::Debug).unwrap();
     yew::start_app_with_props::<App>(());
 }

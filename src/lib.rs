@@ -14,9 +14,8 @@ pub type DrawResult<T> = Result<T, Box<dyn std::error::Error>>;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-pub use jkplot::init_thread_pool;
+//use jkplot::init_thread_pool;
 
-#[wasm_bindgen]
 pub struct Worker {
     core: LleSolver<
         f64,
