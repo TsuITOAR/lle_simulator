@@ -2,8 +2,5 @@
     "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
     "rust-analyzer.diagnostics.disabled": [
         "missing-unsafe"
-    ],
-    "emmet.includeLanguages": {
-        "rust": "html",
-    }
+    ]
 }

@@ -28,25 +28,30 @@ pub struct Worker {
     history: ColorMapVisualizer<CanvasBackend>,
 }
 
-#[wasm_bindgen]
 pub struct CursorPos {
     convert: Box<dyn Fn((i32, i32)) -> Option<(f64, f64)>>,
 }
 
-#[wasm_bindgen]
 impl CursorPos {
     pub fn coord(&self, x: i32, y: i32) -> Option<Point> {
         (self.convert)((x, y)).map(|(x, y)| Point { x, y })
     }
 }
 
-#[wasm_bindgen]
 pub struct Point {
     pub x: f64,
     pub y: f64,
 }
 
-#[wasm_bindgen]
+#[derive(Debug, Clone, Copy)]
+pub enum WorkerUpdate {
+    Alpha(f64),
+    Pump(f64),
+    Linear(f64),
+    RecordStep(u64),
+    SimuStep(f64),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WorkerProperty {
     pub alpha: f64,
@@ -58,14 +63,12 @@ pub struct WorkerProperty {
 
 const SHELL_LEN: usize = 128;
 
-#[wasm_bindgen]
 impl Worker {
     pub fn new(plot_id: &str, map_id: &str) -> Self {
         const STEP_DIST: f64 = 8e-4;
         const PUMP: f64 = 3.94;
         const LINEAR: f64 = -0.0444;
         const ALPHA: f64 = -5.;
-        use lle::LinearOp;
         use rand::Rng;
         utils::set_panic_hook();
         let mut rand = rand::thread_rng();
@@ -102,32 +105,28 @@ impl Worker {
     pub fn get_property(&self) -> WorkerProperty {
         self.property
     }
-    pub fn set_property(&mut self, property: String, value: f64) {
-        match property.as_str() {
-            "alpha" => {
+    pub fn set_property(&mut self, update: WorkerUpdate) {
+        match update {
+            WorkerUpdate::Alpha(value) => {
                 self.property.alpha = value;
                 self.core.linear = (0, -(Complex64::i() * self.property.alpha + 1.))
                     .add((2, -Complex64::i() * self.property.linear / 2.))
                     .into()
             }
-            "pump" => {
-                self.property.alpha = value;
+            WorkerUpdate::Pump(value) => {
+                self.property.pump = value;
                 self.core.constant = Complex64::from(value).into();
             }
-            "linear" => {
+            WorkerUpdate::Linear(value) => {
                 self.property.linear = value;
                 self.core.linear = (0, -(Complex64::i() * self.property.alpha + 1.))
                     .add((2, -Complex64::i() * self.property.linear / 2.))
                     .into()
             }
-            "record_step" => {
-                self.property.record_step = value as u64;
-            }
-            "simu_step" => {
+            WorkerUpdate::RecordStep(value) => self.property.record_step = value as u64,
+            WorkerUpdate::SimuStep(value) => {
                 self.property.simu_step = value;
-            }
-            s => {
-                log::warn!("Unknown property {}", s);
+                self.core.step_dist = value;
             }
         }
     }
