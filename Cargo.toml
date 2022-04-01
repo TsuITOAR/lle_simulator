@@ -33,12 +33,12 @@ wee_alloc = { version = "0.4.5", optional = true }
 rand = { version = "^0.7", features = ["wasm-bindgen"] }
 plotters = "^0.3"
 plotters-canvas = "^0.3.*"
-jkplot = { path = "../jkplot", features = ["wasm-rayon"] }
+jkplot = { path = "../jkplot", default-features = false }
 yew = "*"
 console_log = "*"
 log = "0.4"
 gloo-render = "^0.1"
-
+wasm-bindgen-rayon = { version = "^1.0", features = ["no-bundler"] }
 [dependencies.web-sys]
 version = "*"
 features = ["console", "HtmlCanvasElement", "HtmlButtonElement"]

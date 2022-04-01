@@ -264,7 +264,6 @@ impl Component for LleSimulator {
     }
 }
 
-pub use jkplot::init_thread_pool;
 struct App {
     initialized: bool,
 }
@@ -274,18 +273,9 @@ impl Component for App {
 
     type Properties = ();
 
-    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        if first_render {
-            ctx.link().send_future(async {
-                JsFuture::from(init_thread_pool(8))
-                    .await
-                    .expect("failed initializing thread pool");
-            });
-        }
-    }
 
     fn create(ctx: &Context<Self>) -> Self {
-        Self { initialized: false }
+        Self { initialized: true }
     }
     fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
         if self.initialized {
@@ -308,6 +298,9 @@ impl Component for App {
         }
     }
 }
+
+
+pub use wasm_bindgen_rayon::init_thread_pool;
 
 fn main() {
     console_error_panic_hook::set_once();

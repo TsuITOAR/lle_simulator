@@ -15,7 +15,7 @@ if __name__ == '__main__':
     import mimetypes
     mimetypes.add_type("text/javascript", ".js", True)
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
-    httpd = HTTPServer(('0.0.0.0', port), RequestHandler)
+    httpd = HTTPServer(('127.0.0.1', port), RequestHandler)
     httpd.socket = ssl.wrap_socket(
         httpd.socket, certfile='../cert.pem', keyfile='../key.pem', server_side=True)
     httpd.serve_forever()

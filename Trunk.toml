@@ -2,3 +2,11 @@
 target = "index.html"
 dist = "dist"
 release = true
+#
+#pattern_script = """
+#<script type="module">
+#  import init from '{base}{js}';
+#  import onInit from './init_threads.js';
+#  init().then( onInit );
+#</script>
+#"""
