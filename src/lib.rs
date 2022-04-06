@@ -1,13 +1,7 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, ops::Index};
 
 pub use anyhow::{anyhow, Result};
 use lle::{num_complex::Complex64, Evolver, LinearOp, LleSolver};
-use plotters::prelude::*;
-// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
-// allocator.
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 pub struct Worker {
     core: LleSolver<

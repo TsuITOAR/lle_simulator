@@ -17,6 +17,8 @@ plotters-iced = "^0.1"
 jkplot = { path = "../jkplot" }
 anyhow = "^1"
 iced = { version = "^0.3", features = ["canvas", "tokio"] }
+log = "^0.4"
+env_logger = "^0.9"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.

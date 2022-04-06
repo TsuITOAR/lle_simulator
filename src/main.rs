@@ -1,46 +1,22 @@
-use std::{cell::RefCell, time::Duration};
+use std::time::Duration;
 
 use anyhow::Result;
 use iced::{
-    executor, Align, Application, Clipboard, Column, Command, Container, Element,
-    HorizontalAlignment, Length, Row, Subscription, Text, TextInput,
+    executor, Align, Application, Clipboard, Column, Command, Container, Length, Row, Subscription,
 };
-use jkplot::*;
 use lle_simulator::*;
-use plotters::{coord::Shift, prelude::*};
-use plotters_iced::{Chart, ChartWidget};
 
-mod style {
-    use iced::Color;
+#[allow(unused)]
+use log::{debug, error, info, log_enabled, warn, Level};
 
-    pub struct ChartContainer;
-    impl iced::container::StyleSheet for ChartContainer {
-        fn style(&self) -> iced::container::Style {
-            iced::container::Style {
-                background: Some(Color::BLACK.into()),
-                text_color: Some(Color::WHITE),
-                ..Default::default()
-            }
-        }
-    }
-}
+mod gui;
+use gui::*;
 
 fn main() -> Result<()> {
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .init();
     Ok(())
-}
-
-#[derive(Debug, Clone, Copy)]
-enum SlideMessage {
-    SetMax,
-    SetMin,
-    SetVal,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum Message {
-    Input(WorkerUpdate),
-    Slide((WorkerUpdate, SlideMessage)),
-    Tick,
 }
 
 struct LleSimulator {
@@ -49,94 +25,34 @@ struct LleSimulator {
     panel: [Control; 5],
 }
 
-struct Control<T = f64> {
-    call_back: fn(T) -> WorkerUpdate,
-    desc: String,
-    range: Option<(f64, f64)>,
-}
-
-impl<T> Control<T> {
-    fn new(
-        call_back: fn(T) -> WorkerUpdate,
-        desc: impl Into<String>,
-        range: Option<(f64, f64)>,
-    ) -> Self {
-        Self {
-            call_back,
-            desc: desc.into(),
-            range,
-        }
-    }
-    fn view(&self, value: T) -> Element<Message> {
-        let desc = Row::new()
-            .spacing(5)
-            .align_items(Align::Start)
-            .width(Length::Fill)
-            .push(
-                Text::new(&self.desc)
-                    .width(Length::FillPortion(4))
-                    .horizontal_alignment(HorizontalAlignment::Right),
-            ).push(
-                TextInput::new()
-            );
-        let mut c = Column::new()
-            .spacing(20)
-            .align_items(Align::Start)
-            .width(Length::Fill)
-            .push(desc);
-        /* if let Some((l, h)) = self.range {
-            c = c.push(Row::new().push(TextInput::new(state, placeholder, value, on_change)))
-        } */
-        c.into()
+fn map_property_to_idx(p: WorkerUpdate) -> usize {
+    match p {
+        WorkerUpdate::Alpha(_) => 0,
+        WorkerUpdate::Pump(_) => 1,
+        WorkerUpdate::Linear(_) => 2,
+        WorkerUpdate::RecordStep(_) => 3,
+        WorkerUpdate::SimuStep(_) => 4,
     }
 }
-
-#[derive(Default)]
-struct MyChart {
-    data: Vec<Vec<f64>>,
-    plot: RefCell<RawAnimator>,
-    map: RawMapVisualizer,
-}
-
-impl Chart<Message> for MyChart {
-    fn build_chart<DB: DrawingBackend>(&self, builder: ChartBuilder<DB>) {
-        unreachable!()
-    }
-    fn draw_chart<DB: DrawingBackend>(&self, root: DrawingArea<DB, Shift>) {
-        let (upper, lower) = root.split_horizontally(50.percent());
-        RefCell::borrow_mut(&self.plot)
-            .new_frame_on(
-                self.data
-                    .last()
-                    .expect("drawing line of last raw")
-                    .iter()
-                    .enumerate()
-                    .map(|(x, y)| (x as f64, *y)),
-                &upper,
-            )
-            .unwrap();
-        self.map.draw_on(&self.data, &lower).unwrap();
+fn map_idx_to_property(idx: usize, v: f64) -> WorkerUpdate {
+    match idx {
+        0 => WorkerUpdate::Alpha(v),
+        1 => WorkerUpdate::Pump(v),
+        2 => WorkerUpdate::Linear(v),
+        3 => WorkerUpdate::RecordStep(v as u64),
+        4 => WorkerUpdate::SimuStep(v),
+        _ => unreachable!(),
     }
 }
-
-impl MyChart {
-    fn view(&mut self) -> Element<Message> {
-        Container::new(
-            Column::new()
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .spacing(5)
-                .push(ChartWidget::new(self).height(Length::Fill)),
-        )
-        .style(style::ChartContainer)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(Align::Center)
-        .align_y(Align::Center)
-        .into()
+fn extract_property_value(p: WorkerUpdate) -> f64 {
+    match p {
+        WorkerUpdate::Alpha(v) => v,
+        WorkerUpdate::Pump(v) => v,
+        WorkerUpdate::Linear(v) => v,
+        WorkerUpdate::RecordStep(_) => unreachable!(),
+        WorkerUpdate::SimuStep(_) => unreachable!(),
     }
 }
-
 impl Application for LleSimulator {
     type Executor = executor::Default;
     type Flags = ();
@@ -151,17 +67,9 @@ impl Application for LleSimulator {
                 simulator: Worker::new(),
                 draw: Default::default(),
                 panel: [
-                    Control::new(
-                        Alpha,
-                        "Alpha",
-                        (proper.alpha - 5., proper.alpha + 5.).into(),
-                    ),
-                    Control::new(Pump, "Pump", (proper.pump - 5., proper.pump + 5.).into()),
-                    Control::new(
-                        Linear,
-                        "Linear",
-                        (proper.linear - 5., proper.linear + 5.).into(),
-                    ),
+                    Control::new(Alpha, "Alpha", proper.alpha.into()),
+                    Control::new(Pump, "Pump", proper.pump.into()),
+                    Control::new(Linear, "Linear", proper.linear.into()),
                     Control::new(|x| RecordStep(x as u64), "Record Step", None),
                     Control::new(SimuStep, "Simulation Step", None),
                 ],
@@ -174,7 +82,7 @@ impl Application for LleSimulator {
         "Lle Simulator".into()
     }
     fn subscription(&self) -> Subscription<Self::Message> {
-        const FPS: u64 = 50;
+        const FPS: u64 = 60;
         iced::time::every(Duration::from_millis(1000 / FPS)).map(|_| Message::Tick)
     }
 
@@ -184,13 +92,37 @@ impl Application for LleSimulator {
         _clipboard: &mut Clipboard,
     ) -> Command<Self::Message> {
         match message {
-            Message::Input(v) => self.simulator.set_property(v),
+            Message::Input(v) => {
+                v.apply_or_warn(|v| self.simulator.set_property(v));
+            }
             Message::Slide((v, t)) => match t {
-                SlideMessage::SetMax => todo!(),
-                SlideMessage::SetMin => todo!(),
-                SlideMessage::SetVal => todo!(),
+                SlideMessage::SetMax => {
+                    v.apply_or_warn(|x| {
+                        self.panel[map_property_to_idx(x)]
+                            .range
+                            .as_mut()
+                            .map_or_else(
+                                || warn!("none slider panel returned SetMax message"),
+                                |r| r.higher = extract_property_value(x),
+                            )
+                    });
+                }
+                SlideMessage::SetMin => {
+                    v.apply_or_warn(|x| {
+                        self.panel[map_property_to_idx(x)]
+                            .range
+                            .as_mut()
+                            .map_or_else(
+                                || warn!("none slider panel returned SetMax message"),
+                                |r| r.lower = extract_property_value(x),
+                            )
+                    });
+                }
+                SlideMessage::SetVal => {
+                    v.apply_or_warn(|v| self.simulator.set_property(v));
+                }
             },
-            Message::Tick => todo!(),
+            Message::Tick => self.simulator.tick(),
         };
         Command::none()
     }
@@ -203,11 +135,16 @@ impl Application for LleSimulator {
             .height(Length::Fill)
             .push(self.draw.view());
 
-        let control = Column::new()
+        let mut control = Column::new()
             .spacing(20)
             .align_items(Align::Start)
             .width(Length::Fill)
             .height(Length::Fill);
+        let proper = self.simulator.get_property();
+        self.panel
+            .iter()
+            .enumerate()
+            .for_each(|(idx, x)| control = control.push(x.view()));
 
         let content = Row::new()
             .spacing(20)
