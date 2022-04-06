@@ -1,10 +1,6 @@
-mod plot;
-mod utils;
-
 use std::f64::consts::PI;
 
 pub use anyhow::{anyhow, Result};
-use jkplot::{Animator, ColorMapVisualizer};
 use lle::{num_complex::Complex64, Evolver, LinearOp, LleSolver};
 use plotters::prelude::*;
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -13,15 +9,13 @@ use plotters::prelude::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-pub struct Worker<DB: DrawingBackend> {
+pub struct Worker {
     core: LleSolver<
         f64,
         [Complex64; SHELL_LEN],
         lle::LinearOpAdd<(lle::DiffOrder, Complex64), (lle::DiffOrder, Complex64)>,
     >,
     property: WorkerProperty,
-    animator: Animator<DB>,
-    history: ColorMapVisualizer<DB>,
 }
 pub struct CursorPos {
     convert: Box<dyn Fn((i32, i32)) -> Option<(f64, f64)>>,
@@ -58,23 +52,19 @@ pub struct WorkerProperty {
 
 const SHELL_LEN: usize = 128;
 
-impl<DB: DrawingBackend + 'static> Worker<DB> {
-    pub fn new(line: DB, map: DB) -> Self {
+impl Worker {
+    pub fn new() -> Self {
         const STEP_DIST: f64 = 8e-4;
         const PUMP: f64 = 3.94;
         const LINEAR: f64 = -0.0444;
         const ALPHA: f64 = -5.;
         use rand::Rng;
-        utils::set_panic_hook();
         let mut rand = rand::thread_rng();
         let mut init = [Complex64::new(0., 0.); SHELL_LEN];
         init.iter_mut().for_each(|x| {
             *x = (Complex64::i() * rand.gen::<f64>() * 2. * PI).exp()
                 * (-(rand.gen::<f64>() * 1e5).powi(2)).exp()
         });
-        let mut animator = Animator::on_backend(line);
-        animator.set_min_y_range(1e-4);
-        let history = ColorMapVisualizer::on_backend(map);
         Worker {
             core: LleSolver::new(
                 [Complex64::new(0., 0.); SHELL_LEN],
@@ -91,8 +81,6 @@ impl<DB: DrawingBackend + 'static> Worker<DB> {
                 record_step: 100,
                 simu_step: STEP_DIST,
             },
-            animator,
-            history,
         }
     }
     pub fn get_property(&self) -> WorkerProperty {
@@ -123,7 +111,7 @@ impl<DB: DrawingBackend + 'static> Worker<DB> {
             }
         }
     }
-    pub fn tick(&mut self) -> Result<CursorPos> {
+    pub fn tick(&mut self) {
         use rand::Rng;
         let mut rand = rand::thread_rng();
         self.core.state_mut().iter_mut().for_each(|x| {
@@ -131,16 +119,5 @@ impl<DB: DrawingBackend + 'static> Worker<DB> {
                 * (-(rand.gen::<f64>() * 1e5).powi(2)).exp()
         });
         self.core.evolve_n(self.property.record_step);
-        let v: Vec<_> = self
-            .core
-            .state()
-            .iter()
-            .enumerate()
-            .map(|(x, y)| (x as f64, y.re))
-            .collect();
-        let map_coord = self.draw(v)?;
-        Ok(CursorPos {
-            convert: Box::new(move |coord| map_coord(coord).map(|(x, y)| (x.into(), y.into()))),
-        })
     }
 }
