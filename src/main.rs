@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use anyhow::Result;
 use iced::{
-    executor, Align, Application, Clipboard, Column, Command, Container, Length, Row, Subscription,
+    button, executor, Align, Application, Button, Clipboard, Column, Command, Container, Length,
+    Row, Settings, Subscription,
 };
 use lle_simulator::*;
 
@@ -14,8 +15,9 @@ use gui::*;
 
 fn main() -> Result<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Warn)
         .init();
+    LleSimulator::run(Settings::default())?;
     Ok(())
 }
 
@@ -23,36 +25,10 @@ struct LleSimulator {
     simulator: Worker,
     draw: MyChart,
     panel: [Control; 5],
+    pause: bool,
+    button: button::State,
 }
 
-fn map_property_to_idx(p: WorkerUpdate) -> usize {
-    match p {
-        WorkerUpdate::Alpha(_) => 0,
-        WorkerUpdate::Pump(_) => 1,
-        WorkerUpdate::Linear(_) => 2,
-        WorkerUpdate::RecordStep(_) => 3,
-        WorkerUpdate::SimuStep(_) => 4,
-    }
-}
-fn map_idx_to_property(idx: usize, v: f64) -> WorkerUpdate {
-    match idx {
-        0 => WorkerUpdate::Alpha(v),
-        1 => WorkerUpdate::Pump(v),
-        2 => WorkerUpdate::Linear(v),
-        3 => WorkerUpdate::RecordStep(v as u64),
-        4 => WorkerUpdate::SimuStep(v),
-        _ => unreachable!(),
-    }
-}
-fn extract_property_value(p: WorkerUpdate) -> f64 {
-    match p {
-        WorkerUpdate::Alpha(v) => v,
-        WorkerUpdate::Pump(v) => v,
-        WorkerUpdate::Linear(v) => v,
-        WorkerUpdate::RecordStep(_) => unreachable!(),
-        WorkerUpdate::SimuStep(_) => unreachable!(),
-    }
-}
 impl Application for LleSimulator {
     type Executor = executor::Default;
     type Flags = ();
@@ -62,17 +38,26 @@ impl Application for LleSimulator {
         use WorkerUpdate::*;
         let simu = Worker::new();
         let proper = simu.get_property();
+        let init_from_property = |p: WorkerUpdate| -> Control<f64> {
+            match p {
+                Alpha(v) => Control::new(Alpha, "Alpha", v.into()),
+                Pump(v) => Control::new(Pump, "Pump", v.into()),
+                Linear(v) => Control::new(Linear, "Linear", v.into()),
+                RecordStep(_) => Control::new(|x| RecordStep(x as u64), "Record Step", None),
+                SimuStep(_) => Control::new(SimuStep, "Simulation Step", None),
+            }
+        };
         (
             Self {
                 simulator: Worker::new(),
                 draw: Default::default(),
-                panel: [
-                    Control::new(Alpha, "Alpha", proper.alpha.into()),
-                    Control::new(Pump, "Pump", proper.pump.into()),
-                    Control::new(Linear, "Linear", proper.linear.into()),
-                    Control::new(|x| RecordStep(x as u64), "Record Step", None),
-                    Control::new(SimuStep, "Simulation Step", None),
-                ],
+                panel: array_init::from_iter(
+                    IntoIterator::into_iter(from_property_array(proper))
+                        .map(|x| init_from_property(x)),
+                )
+                .expect("initializing state"),
+                pause: true,
+                button: button::State::new(),
             },
             Command::none(),
         )
@@ -83,7 +68,11 @@ impl Application for LleSimulator {
     }
     fn subscription(&self) -> Subscription<Self::Message> {
         const FPS: u64 = 60;
-        iced::time::every(Duration::from_millis(1000 / FPS)).map(|_| Message::Tick)
+        if !self.pause {
+            iced::time::every(Duration::from_millis(1000 / FPS)).map(|_| Message::Tick)
+        } else {
+            Subscription::none()
+        }
     }
 
     fn update(
@@ -98,31 +87,30 @@ impl Application for LleSimulator {
             Message::Slide((v, t)) => match t {
                 SlideMessage::SetMax => {
                     v.apply_or_warn(|x| {
-                        self.panel[map_property_to_idx(x)]
-                            .range
-                            .as_mut()
-                            .map_or_else(
-                                || warn!("none slider panel returned SetMax message"),
-                                |r| r.higher = extract_property_value(x),
-                            )
+                        self.panel[map_property_to_idx(x)].range_mut().map_or_else(
+                            || warn!("none slider panel returned SetMax message"),
+                            |r| r.higher = extract_property_value(x),
+                        )
                     });
                 }
                 SlideMessage::SetMin => {
                     v.apply_or_warn(|x| {
-                        self.panel[map_property_to_idx(x)]
-                            .range
-                            .as_mut()
-                            .map_or_else(
-                                || warn!("none slider panel returned SetMax message"),
-                                |r| r.lower = extract_property_value(x),
-                            )
+                        self.panel[map_property_to_idx(x)].range_mut().map_or_else(
+                            || warn!("none slider panel returned SetMin message"),
+                            |r| r.lower = extract_property_value(x),
+                        )
                     });
                 }
                 SlideMessage::SetVal => {
                     v.apply_or_warn(|v| self.simulator.set_property(v));
                 }
             },
-            Message::Tick => self.simulator.tick(),
+            Message::Tick => {
+                self.simulator.tick();
+                self.draw
+                    .push(self.simulator.get_state().iter().map(|x| x.re).collect());
+            }
+            Message::Pause => self.pause = !self.pause,
         };
         Command::none()
     }
@@ -141,11 +129,21 @@ impl Application for LleSimulator {
             .width(Length::Fill)
             .height(Length::Fill);
         let proper = self.simulator.get_property();
-        self.panel
-            .iter()
-            .enumerate()
-            .for_each(|(idx, x)| control = control.push(x.view()));
-
+        for (c, w) in self
+            .panel
+            .iter_mut()
+            .zip(IntoIterator::into_iter(from_property_array(proper)))
+        {
+            control = control.push(c.view(w));
+        }
+        control = control.push(
+            Button::new(
+                &mut self.button,
+                iced::Text::new(if self.pause { "Run" } else { "Pause" }),
+            )
+            .on_press(Message::Pause)
+            .padding(10),
+        );
         let content = Row::new()
             .spacing(20)
             .align_items(Align::Center)

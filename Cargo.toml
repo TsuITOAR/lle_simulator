@@ -5,21 +5,17 @@ authors = ["ITOAR <itoar@outlook.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/TsuITOAR/lle_simulator"
-description = "Lugiato-Lefever Equation Simulator use Rust & WebAssembly"
+description = "Lugiato-Lefever Equation Simulator use Rust & Iced"
 
 
 [dependencies]
 lle = { path = "../lle" }
-# The `console_error_panic_hook` crate provides better
 rand = { version = "^0.8" }
 plotters = "^0.3"
 plotters-iced = "^0.1"
-jkplot = { path = "../jkplot" }
+jkplot = { path = "../jkplot", default-features = false }
 anyhow = "^1"
-iced = { version = "^0.3", features = ["canvas", "tokio"] }
+iced = { version = "^0.3", features = ["canvas", "tokio", "debug"] }
 log = "^0.4"
 env_logger = "^0.9"
-
-[profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
+array-init = "^2"

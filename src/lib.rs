@@ -1,4 +1,4 @@
-use std::{f64::consts::PI, ops::Index};
+use std::f64::consts::PI;
 
 pub use anyhow::{anyhow, Result};
 use lle::{num_complex::Complex64, Evolver, LinearOp, LleSolver};
@@ -113,5 +113,8 @@ impl Worker {
                 * (-(rand.gen::<f64>() * 1e5).powi(2)).exp()
         });
         self.core.evolve_n(self.property.record_step);
+    }
+    pub fn get_state(&self) -> &[Complex64] {
+        self.core.state()
     }
 }

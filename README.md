@@ -2,4 +2,4 @@
 
   <h1><code>lle-simulator</code></h1>
 
-  <strong>Lugiato-Lefever Equation Simulator use Rust & WebAssembly</strong>
+  <strong>Lugiato-Lefever Equation Simulator use Rust & Iced</strong>
