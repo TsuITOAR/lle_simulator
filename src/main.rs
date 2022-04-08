@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::Result;
 use iced::{
     button, executor, Align, Application, Button, Clipboard, Column, Command, Container, Length,
-    Row, Settings, Subscription,
+    Settings, Subscription,
 };
 use lle_simulator::*;
 
@@ -67,7 +67,7 @@ impl Application for LleSimulator {
         "Lle Simulator".into()
     }
     fn subscription(&self) -> Subscription<Self::Message> {
-        const FPS: u64 = 60;
+        const FPS: u64 = 5;
         if !self.pause {
             iced::time::every(Duration::from_millis(1000 / FPS)).map(|_| Message::Tick)
         } else {
@@ -109,6 +109,7 @@ impl Application for LleSimulator {
                 self.simulator.tick();
                 self.draw
                     .push(self.simulator.get_state().iter().map(|x| x.re).collect());
+                self.draw.update().expect("refreshing status");
             }
             Message::Pause => self.pause = !self.pause,
         };
@@ -116,13 +117,6 @@ impl Application for LleSimulator {
     }
 
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        let plot = Column::new()
-            .spacing(20)
-            .align_items(Align::Start)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .push(self.draw.view());
-
         let mut control = Column::new()
             .spacing(20)
             .align_items(Align::Start)
@@ -144,15 +138,8 @@ impl Application for LleSimulator {
             .on_press(Message::Pause)
             .padding(10),
         );
-        let content = Row::new()
-            .spacing(20)
-            .align_items(Align::Center)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .push(plot)
-            .push(control);
 
-        Container::new(content)
+        Container::new(control)
             .width(Length::Fill)
             .height(Length::Fill)
             .padding(5)

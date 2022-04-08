@@ -12,10 +12,11 @@ description = "Lugiato-Lefever Equation Simulator use Rust & Iced"
 lle = { path = "../lle" }
 rand = { version = "^0.8" }
 plotters = "^0.3"
-plotters-iced = "^0.1"
+plotters-bitmap = "^0.3"
 jkplot = { path = "../jkplot", default-features = false }
 anyhow = "^1"
-iced = { version = "^0.3", features = ["canvas", "tokio", "debug"] }
+iced = { version = "^0.3", features = ["tokio", "debug"] }
 log = "^0.4"
 env_logger = "^0.9"
 array-init = "^2"
+minifb = "*"

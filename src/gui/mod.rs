@@ -1,3 +1,4 @@
+use super::*;
 pub mod style {
     use iced::Color;
 
@@ -42,7 +43,7 @@ pub fn property_value_to_string(v: WorkerUpdate) -> String {
         WorkerUpdate::Alpha(v)
         | WorkerUpdate::Pump(v)
         | WorkerUpdate::Linear(v)
-        | WorkerUpdate::SimuStep(v) => v.to_string(),
+        | WorkerUpdate::SimuStep(v) => format!("{:.3E}",v),
         WorkerUpdate::RecordStep(v) => v.to_string(),
     }
 }

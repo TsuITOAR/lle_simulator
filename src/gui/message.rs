@@ -1,13 +1,13 @@
-use std::{cell::RefCell, ops::RangeInclusive};
+use std::{mem::size_of, ops::RangeInclusive};
 
 use iced::{
-    slider, text_input, Align, Column, Container, Element, HorizontalAlignment, Length, Row,
-    Slider, Text, TextInput,
+    slider, text_input, Align, Column, Element, HorizontalAlignment, Length, Row, Slider, Text,
+    TextInput,
 };
 use jkplot::{RawAnimator, RawMapVisualizer};
 use lle_simulator::WorkerUpdate;
-use plotters::{coord::Shift, style::AsRelative};
-use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingArea, DrawingBackend};
+use minifb::{Scale, Window, WindowOptions};
+use plotters::{prelude::*, style::AsRelative};
 
 use super::*;
 
@@ -152,7 +152,7 @@ impl Control<f64> {
                             },
                         )
                         .width(Length::Fill)
-                        .step((*higher - *lower) / 1000.)
+                        .step((*higher - *lower) / 10000.)
                         .width(Length::FillPortion(INPUT_WIDTH_PORTION)),
                     )
                     .push(
@@ -173,52 +173,79 @@ impl Control<f64> {
 #[derive(Default)]
 pub struct MyChart {
     data: Vec<Vec<f64>>,
-    plot: RefCell<RawAnimator>,
+    plot: RawAnimator,
     map: RawMapVisualizer,
-}
-
-impl Chart<Message> for MyChart {
-    fn build_chart<DB: DrawingBackend>(&self, _builder: ChartBuilder<DB>) {
-        unreachable!()
-    }
-    #[allow(unused)]
-    fn draw_chart<DB: DrawingBackend>(&self, root: DrawingArea<DB, Shift>) {
-        let (upper, lower) = root.split_vertically(50.percent());
-        if let Some(d) = self.data.last() {
-            RefCell::borrow_mut(&self.plot)
-                .new_frame_on(d.iter().enumerate().map(|(x, y)| (x as f64, *y)), &upper)
-                .unwrap();
-            self.map.draw_on(&self.data, &lower).unwrap();
-        } else {
-            warn!("trying drawing empty data");
-        }
-    }
+    window: Option<(Window, (usize, usize))>,
+    buffer: Vec<u32>,
 }
 
 impl MyChart {
+    const WIDTH: usize = 640;
+    const HEIGHT: usize = 640;
+    #[allow(unused)]
+    pub fn update(&mut self) -> Result<()> {
+        //get or create window
+        let (w, size) = match self.window {
+            Some((ref mut w, (width, height))) => {
+                if !w.is_open() {
+                    *w = Window::new(
+                        "Status dispay",
+                        width,
+                        height,
+                        WindowOptions {
+                            scale: Scale::X2,
+                            ..WindowOptions::default()
+                        },
+                    )?;
+                }
+                (w, (width, height))
+            }
+            _ => {
+                let r = self.window.insert((
+                    Window::new(
+                        "Status dispay",
+                        Self::WIDTH,
+                        Self::HEIGHT,
+                        WindowOptions {
+                            scale: Scale::X2,
+                            ..WindowOptions::default()
+                        },
+                    )?,
+                    (Self::WIDTH, Self::HEIGHT),
+                ));
+                self.buffer.resize(r.1 .0 * r.1 .1, 0);
+                (&mut r.0, r.1)
+            }
+        };
+
+        //draw chart
+        {
+            fn u32_to_u8(arr: &mut [u32]) -> &mut [u8] {
+                let len = size_of::<u32>() / size_of::<u8>() * arr.len();
+                let ptr = arr.as_mut_ptr() as *mut u8;
+                unsafe { std::slice::from_raw_parts_mut(ptr, len) }
+            }
+            let db =
+                BitMapBackend::<plotters_bitmap::bitmap_pixel::BGRXPixel>::with_buffer_and_format(
+                    u32_to_u8(&mut self.buffer),
+                    (size.0 as u32, size.1 as u32),
+                )?;
+            let (upper, lower) = db.into_drawing_area().split_vertically(50.percent());
+            if let Some(d) = self.data.last() {
+                self.plot
+                    .new_frame_on(d.iter().enumerate().map(|(x, y)| (x as f64, *y)), &upper)
+                    .unwrap();
+                self.map.draw_on(&self.data, &lower).unwrap();
+            } else {
+                warn!("trying drawing empty data");
+            }
+        }
+
+        w.update_with_buffer(&self.buffer, size.0, size.1)?;
+        Ok(())
+    }
     pub fn push(&mut self, new_data: Vec<f64>) {
         self.map.update_range(&new_data);
         self.data.push(new_data);
-    }
-    pub fn data_mut(&mut self) -> &mut Vec<Vec<f64>> {
-        &mut self.data
-    }
-    pub fn get_data(&self) -> &Vec<Vec<f64>> {
-        &self.data
-    }
-    pub fn view(&mut self) -> Element<Message> {
-        Container::new(
-            Column::new()
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .spacing(5)
-                .push(ChartWidget::new(self).height(Length::Fill)),
-        )
-        .style(style::ChartContainer)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .align_x(Align::Center)
-        .align_y(Align::Center)
-        .into()
     }
 }
