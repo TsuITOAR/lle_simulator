@@ -1,9 +1,9 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use iced::{
     button, executor, Align, Application, Button, Clipboard, Column, Command, Container, Length,
-    Settings, Subscription,
+    Settings,
 };
 use lle_simulator::*;
 
@@ -27,6 +27,7 @@ struct LleSimulator {
     panel: [Control; 5],
     pause: bool,
     button: button::State,
+    last_update: Option<Instant>,
 }
 
 impl Application for LleSimulator {
@@ -58,6 +59,7 @@ impl Application for LleSimulator {
                 .expect("initializing state"),
                 pause: true,
                 button: button::State::new(),
+                last_update: None,
             },
             Command::none(),
         )
@@ -65,14 +67,6 @@ impl Application for LleSimulator {
 
     fn title(&self) -> String {
         "Lle Simulator".into()
-    }
-    fn subscription(&self) -> Subscription<Self::Message> {
-        const FPS: u64 = 5;
-        if !self.pause {
-            iced::time::every(Duration::from_millis(1000 / FPS)).map(|_| Message::Tick)
-        } else {
-            Subscription::none()
-        }
     }
 
     fn update(
@@ -110,8 +104,29 @@ impl Application for LleSimulator {
                 self.draw
                     .push(self.simulator.get_state().iter().map(|x| x.re).collect());
                 self.draw.update().expect("refreshing status");
+                if !self.pause {
+                    const FPS: u64 = 60;
+                    let duration: Duration = Duration::from_secs_f32(1. / FPS as f32);
+                    let now = Instant::now();
+                    return self
+                        .last_update
+                        .replace(now)
+                        .map(|last| last + duration - now)
+                        .map_or(async { Message::Tick }.into(), |x| {
+                            async move {
+                                tokio::time::sleep(x).await;
+                                Message::Tick
+                            }
+                            .into()
+                        });
+                }
             }
-            Message::Pause => self.pause = !self.pause,
+            Message::Pause => {
+                self.pause = !self.pause;
+                if !self.pause {
+                    return Command::from(async { Message::Tick });
+                }
+            }
         };
         Command::none()
     }

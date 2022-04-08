@@ -193,7 +193,7 @@ impl MyChart {
                         width,
                         height,
                         WindowOptions {
-                            scale: Scale::X2,
+                            scale: Scale::X1,
                             ..WindowOptions::default()
                         },
                     )?;
@@ -207,7 +207,7 @@ impl MyChart {
                         Self::WIDTH,
                         Self::HEIGHT,
                         WindowOptions {
-                            scale: Scale::X2,
+                            scale: Scale::X1,
                             ..WindowOptions::default()
                         },
                     )?,
