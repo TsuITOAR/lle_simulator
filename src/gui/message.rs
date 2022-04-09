@@ -7,7 +7,7 @@ use iced::{
 use jkplot::{RawAnimator, RawMapVisualizer};
 use lle_simulator::WorkerUpdate;
 use minifb::{Scale, Window, WindowOptions};
-use plotters::{prelude::*, style::AsRelative};
+use plotters::prelude::*;
 
 use super::*;
 
@@ -140,20 +140,23 @@ impl Control<f64> {
                         .width(Length::FillPortion(1)),
                     )
                     .push(
-                        Slider::new(
-                            input_slide,
-                            RangeInclusive::new(*lower, *higher),
-                            extract_property_value(value),
-                            move |new: f64| {
-                                Message::Slide((
-                                    NewValue::Number(call_back(new)),
-                                    SlideMessage::SetVal,
-                                ))
-                            },
+                        Container::new(
+                            Slider::new(
+                                input_slide,
+                                RangeInclusive::new(*lower, *higher),
+                                extract_property_value(value),
+                                move |new: f64| {
+                                    Message::Slide((
+                                        NewValue::Number(call_back(new)),
+                                        SlideMessage::SetVal,
+                                    ))
+                                },
+                            )
+                            .width(Length::Fill)
+                            .step((*higher - *lower) / 10000.),
                         )
-                        .width(Length::Fill)
-                        .step((*higher - *lower) / 10000.)
-                        .width(Length::FillPortion(INPUT_WIDTH_PORTION)),
+                        .width(Length::FillPortion(INPUT_WIDTH_PORTION))
+                        .padding(5),
                     )
                     .push(
                         TextInput::new(
@@ -185,11 +188,11 @@ impl MyChart {
     #[allow(unused)]
     pub fn update(&mut self) -> Result<()> {
         //get or create window
-        let (w, size) = match self.window {
+        let size = match self.window {
             Some((ref mut w, (width, height))) => {
                 if !w.is_open() {
                     *w = Window::new(
-                        "Status dispay",
+                        "Status display",
                         width,
                         height,
                         WindowOptions {
@@ -198,7 +201,7 @@ impl MyChart {
                         },
                     )?;
                 }
-                (w, (width, height))
+                (width, height)
             }
             _ => {
                 let r = self.window.insert((
@@ -214,7 +217,7 @@ impl MyChart {
                     (Self::WIDTH, Self::HEIGHT),
                 ));
                 self.buffer.resize(r.1 .0 * r.1 .1, 0);
-                (&mut r.0, r.1)
+                r.1
             }
         };
 
@@ -225,23 +228,36 @@ impl MyChart {
                 let ptr = arr.as_mut_ptr() as *mut u8;
                 unsafe { std::slice::from_raw_parts_mut(ptr, len) }
             }
-            let db =
+            let upper_size = size.1 / 2;
+            let lower_size = size.1 - size.1 / 2;
+            let (upper_buffer, lower_buffer) =
+                self.buffer[..].split_at_mut(size.0 * upper_size as usize);
+            let upper =
                 BitMapBackend::<plotters_bitmap::bitmap_pixel::BGRXPixel>::with_buffer_and_format(
-                    u32_to_u8(&mut self.buffer),
-                    (size.0 as u32, size.1 as u32),
-                )?;
-            let (upper, lower) = db.into_drawing_area().split_vertically(50.percent());
+                    u32_to_u8(upper_buffer),
+                    (size.0 as u32, upper_size as u32),
+                )?
+                .into_drawing_area();
+            let lower =
+                BitMapBackend::<plotters_bitmap::bitmap_pixel::BGRXPixel>::with_buffer_and_format(
+                    u32_to_u8(lower_buffer),
+                    (size.0 as u32, lower_size as u32),
+                )?
+                .into_drawing_area();
             if let Some(d) = self.data.last() {
                 self.plot
                     .new_frame_on(d.iter().enumerate().map(|(x, y)| (x as f64, *y)), &upper)
                     .unwrap();
-                self.map.draw_on(&self.data, &lower).unwrap();
+                async { self.map.draw_on(&self.data, &lower).unwrap() };
             } else {
                 warn!("trying drawing empty data");
             }
         }
-
-        w.update_with_buffer(&self.buffer, size.0, size.1)?;
+        self.window
+            .as_mut()
+            .expect("window initialized at function begin")
+            .0
+            .update_with_buffer(&self.buffer, size.0, size.1)?;
         Ok(())
     }
     pub fn push(&mut self, new_data: Vec<f64>) {

@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use iced::{
     button, executor, Align, Application, Button, Clipboard, Column, Command, Container, Length,
-    Settings,
+    Row, Settings,
 };
 use lle_simulator::*;
 
@@ -26,7 +26,8 @@ struct LleSimulator {
     draw: MyChart,
     panel: [Control; 5],
     pause: bool,
-    button: button::State,
+    pause_button: button::State,
+    tick_button: button::State,
     last_update: Option<Instant>,
 }
 
@@ -58,7 +59,8 @@ impl Application for LleSimulator {
                 )
                 .expect("initializing state"),
                 pause: true,
-                button: button::State::new(),
+                pause_button: button::State::new(),
+                tick_button: button::State::new(),
                 last_update: None,
             },
             Command::none(),
@@ -134,7 +136,7 @@ impl Application for LleSimulator {
     fn view(&mut self) -> iced::Element<'_, Self::Message> {
         let mut control = Column::new()
             .spacing(20)
-            .align_items(Align::Start)
+            .align_items(Align::Center)
             .width(Length::Fill)
             .height(Length::Fill);
         let proper = self.simulator.get_property();
@@ -146,12 +148,28 @@ impl Application for LleSimulator {
             control = control.push(c.view(w));
         }
         control = control.push(
-            Button::new(
-                &mut self.button,
-                iced::Text::new(if self.pause { "Run" } else { "Pause" }),
-            )
-            .on_press(Message::Pause)
-            .padding(10),
+            Row::new()
+                .align_items(Align::Center)
+                .width(Length::Shrink)
+                .push(
+                    Container::new(
+                        Button::new(
+                            &mut self.pause_button,
+                            iced::Text::new(if self.pause { "Run" } else { "Pause" }),
+                        )
+                        .on_press(Message::Pause)
+                        .padding(10),
+                    )
+                    .padding(5),
+                )
+                .push(
+                    Container::new(
+                        Button::new(&mut self.tick_button, iced::Text::new("Step"))
+                            .on_press(Message::Tick)
+                            .padding(10),
+                    )
+                    .padding(5),
+                ),
         );
 
         Container::new(control)
