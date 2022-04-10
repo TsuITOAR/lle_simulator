@@ -1,4 +1,8 @@
-use std::{mem::size_of, ops::RangeInclusive};
+use std::{
+    mem::size_of,
+    ops::RangeInclusive,
+    thread::{spawn, JoinHandle},
+};
 
 use iced::{
     slider, text_input, Align, Column, Element, HorizontalAlignment, Length, Row, Slider, Text,
@@ -173,63 +177,158 @@ impl Control<f64> {
     }
 }
 
-#[derive(Default)]
-pub struct MyChart {
+fn u32_to_u8(arr: &mut [u32]) -> &mut [u8] {
+    let len = size_of::<u32>() / size_of::<u8>() * arr.len();
+    let ptr = arr.as_mut_ptr() as *mut u8;
+    unsafe { std::slice::from_raw_parts_mut(ptr, len) }
+}
+
+pub struct DrawData {
     data: Vec<Vec<f64>>,
     plot: RawAnimator,
-    map: RawMapVisualizer,
-    window: Option<(Window, (usize, usize))>,
+    map: SpawnMapVisual,
+    window: Option<Window>,
+    size: (usize, usize),
     buffer: Vec<u32>,
 }
 
-impl MyChart {
-    const WIDTH: usize = 640;
-    const HEIGHT: usize = 640;
+struct StandBy {
+    bitmap_buffer: Vec<u32>,
+    data: Vec<Vec<f64>>,
+    map: RawMapVisualizer,
+    size: (usize, usize),
+}
+
+#[allow(unused)]
+impl StandBy {
+    fn new(size: (usize, usize)) -> Self {
+        Self {
+            bitmap_buffer: vec![0; size.0 * size.1],
+            data: Vec::new(),
+            map: RawMapVisualizer::default(),
+            size,
+        }
+    }
+    fn set_size(&mut self, size: (usize, usize)) {
+        self.bitmap_buffer.resize(size.0 * size.1, 0);
+        self.size = size;
+    }
+    fn draw(&mut self) -> Result<()> {
+        self.map.draw_on(
+            &self.data,
+            &BitMapBackend::<plotters_bitmap::bitmap_pixel::BGRXPixel>::with_buffer_and_format(
+                u32_to_u8(&mut self.bitmap_buffer),
+                (self.size.0 as u32, self.size.1 as u32),
+            )?
+            .into_drawing_area(),
+        )?;
+        Ok(())
+    }
+    fn spawn(mut self) -> JoinHandle<Self> {
+        spawn(move || {
+            self.draw().expect("failed drawing color map");
+            self
+        })
+    }
+}
+
+enum SpawnMapVisual {
+    StandBy(StandBy),
+    Handler(JoinHandle<StandBy>),
+    ///this should never appear other than its own method for temporary take the data ownership
+    Temp,
+}
+
+#[allow(unused)]
+impl SpawnMapVisual {
+    fn new(size: (usize, usize)) -> Self {
+        SpawnMapVisual::StandBy(StandBy::new(size))
+    }
+    fn try_set_size(&mut self, size: (usize, usize)) -> bool {
+        if let SpawnMapVisual::StandBy(s) = self {
+            s.set_size(size);
+            true
+        } else {
+            false
+        }
+    }
+    fn try_update(&mut self, new_data: &mut Vec<Vec<f64>>, buffer_dis: &mut [u32]) -> Result<bool> {
+        match std::mem::replace(self, SpawnMapVisual::Temp) {
+            SpawnMapVisual::StandBy(mut s) => {
+                new_data.iter().for_each(|x| {
+                    s.map.update_range(x);
+                });
+                s.data.append(new_data);
+                buffer_dis.clone_from_slice(&s.bitmap_buffer);
+                *self = SpawnMapVisual::Handler(s.spawn());
+                Ok(true)
+            }
+            SpawnMapVisual::Handler(h) => {
+                if h.is_finished() {
+                    *self = SpawnMapVisual::StandBy(
+                        h.join().map_err(|_| anyhow!("color map thread panicked"))?,
+                    );
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            SpawnMapVisual::Temp => unreachable!(),
+        }
+    }
+}
+
+impl DrawData {
+    fn split_area(size: usize) -> (usize, usize) {
+        (size / 2, size - size / 2)
+    }
+    pub fn new(size: (usize, usize)) -> Self {
+        DrawData {
+            data: Vec::default(),
+            plot: RawAnimator::default(),
+            map: SpawnMapVisual::new((size.0, Self::split_area(size.1).1)),
+            window: None,
+            size,
+            buffer: Vec::default(),
+        }
+    }
     #[allow(unused)]
     pub fn update(&mut self) -> Result<()> {
         //get or create window
-        let size = match self.window {
-            Some((ref mut w, (width, height))) => {
+        let size = self.size;
+        let window = match self.window {
+            Some(ref mut w) => {
                 if !w.is_open() {
                     *w = Window::new(
                         "Status display",
-                        width,
-                        height,
+                        size.0,
+                        size.1,
                         WindowOptions {
                             scale: Scale::X1,
                             ..WindowOptions::default()
                         },
                     )?;
                 }
-                (width, height)
+                w
             }
             _ => {
-                let r = self.window.insert((
-                    Window::new(
+                self.buffer.resize(size.0 * size.1, 0);
+                self.window.insert(
+                    (Window::new(
                         "Status dispay",
-                        Self::WIDTH,
-                        Self::HEIGHT,
+                        size.0,
+                        size.1,
                         WindowOptions {
                             scale: Scale::X1,
                             ..WindowOptions::default()
                         },
-                    )?,
-                    (Self::WIDTH, Self::HEIGHT),
-                ));
-                self.buffer.resize(r.1 .0 * r.1 .1, 0);
-                r.1
+                    )?),
+                )
             }
         };
-
         //draw chart
         {
-            fn u32_to_u8(arr: &mut [u32]) -> &mut [u8] {
-                let len = size_of::<u32>() / size_of::<u8>() * arr.len();
-                let ptr = arr.as_mut_ptr() as *mut u8;
-                unsafe { std::slice::from_raw_parts_mut(ptr, len) }
-            }
-            let upper_size = size.1 / 2;
-            let lower_size = size.1 - size.1 / 2;
+            let (upper_size, lower_size) = Self::split_area(size.1);
             let (upper_buffer, lower_buffer) =
                 self.buffer[..].split_at_mut(size.0 * upper_size as usize);
             let upper =
@@ -238,30 +337,19 @@ impl MyChart {
                     (size.0 as u32, upper_size as u32),
                 )?
                 .into_drawing_area();
-            let lower =
-                BitMapBackend::<plotters_bitmap::bitmap_pixel::BGRXPixel>::with_buffer_and_format(
-                    u32_to_u8(lower_buffer),
-                    (size.0 as u32, lower_size as u32),
-                )?
-                .into_drawing_area();
             if let Some(d) = self.data.last() {
                 self.plot
                     .new_frame_on(d.iter().enumerate().map(|(x, y)| (x as f64, *y)), &upper)
                     .unwrap();
-                async { self.map.draw_on(&self.data, &lower).unwrap() };
+                self.map.try_update(&mut self.data, lower_buffer)?;
             } else {
                 warn!("trying drawing empty data");
             }
         }
-        self.window
-            .as_mut()
-            .expect("window initialized at function begin")
-            .0
-            .update_with_buffer(&self.buffer, size.0, size.1)?;
+        window.update_with_buffer(&self.buffer, size.0, size.1)?;
         Ok(())
     }
     pub fn push(&mut self, new_data: Vec<f64>) {
-        self.map.update_range(&new_data);
         self.data.push(new_data);
     }
 }

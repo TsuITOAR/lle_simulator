@@ -1,3 +1,4 @@
+#![feature(thread_is_running)]
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -23,7 +24,7 @@ fn main() -> Result<()> {
 
 struct LleSimulator {
     simulator: Worker,
-    draw: MyChart,
+    draw: DrawData,
     panel: [Control; 5],
     pause: bool,
     pause_button: button::State,
@@ -37,9 +38,11 @@ impl Application for LleSimulator {
     type Message = Message;
 
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
+        const WIDTH: usize = 640;
+        const HEIGHT: usize = 640;
         use WorkerUpdate::*;
-        let simu = Worker::new();
-        let proper = simu.get_property();
+        let simulation = Worker::new();
+        let proper = simulation.get_property();
         let init_from_property = |p: WorkerUpdate| -> Control<f64> {
             match p {
                 Alpha(v) => Control::new(Alpha, "Alpha", v.into()),
@@ -52,7 +55,7 @@ impl Application for LleSimulator {
         (
             Self {
                 simulator: Worker::new(),
-                draw: Default::default(),
+                draw: DrawData::new((WIDTH, HEIGHT)),
                 panel: array_init::from_iter(
                     IntoIterator::into_iter(from_property_array(proper))
                         .map(|x| init_from_property(x)),
