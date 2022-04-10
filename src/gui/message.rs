@@ -270,6 +270,7 @@ impl SpawnMapVisual {
                     );
                     Ok(true)
                 } else {
+                    *self = SpawnMapVisual::Handler(h);
                     Ok(false)
                 }
             }
