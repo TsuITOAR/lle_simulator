@@ -1,24 +1,12 @@
 use super::*;
-pub mod style {
-    use iced::Color;
-
-    pub struct ChartContainer;
-    impl iced::container::StyleSheet for ChartContainer {
-        fn style(&self) -> iced::container::Style {
-            iced::container::Style {
-                background: Some(Color::BLACK.into()),
-                text_color: Some(Color::WHITE),
-                ..Default::default()
-            }
-        }
-    }
-}
 
 use lle_simulator::{WorkerProperty, WorkerUpdate};
 #[allow(unused)]
 use log::{debug, error, info, log_enabled, warn, Level};
 
+mod chart;
 mod message;
+pub use chart::*;
 pub use message::*;
 
 fn from_property(p: &WorkerProperty, idx: usize) -> WorkerUpdate {
@@ -43,7 +31,7 @@ pub fn property_value_to_string(v: WorkerUpdate) -> String {
         WorkerUpdate::Alpha(v)
         | WorkerUpdate::Pump(v)
         | WorkerUpdate::Linear(v)
-        | WorkerUpdate::SimuStep(v) => format!("{:.3E}",v),
+        | WorkerUpdate::SimuStep(v) => format!("{:.3E}", v),
         WorkerUpdate::RecordStep(v) => v.to_string(),
     }
 }

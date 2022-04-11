@@ -1,4 +1,3 @@
-#![feature(thread_is_running)]
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -52,10 +51,11 @@ impl Application for LleSimulator {
                 SimuStep(_) => Control::new(SimuStep, "Simulation Step", None),
             }
         };
+        let simulator = Worker::new();
         (
             Self {
-                simulator: Worker::new(),
-                draw: DrawData::new((WIDTH, HEIGHT)),
+                draw: DrawData::new(simulator.get_state().len(), (WIDTH, HEIGHT)),
+                simulator,
                 panel: array_init::from_iter(
                     IntoIterator::into_iter(from_property_array(proper))
                         .map(|x| init_from_property(x)),
@@ -106,8 +106,7 @@ impl Application for LleSimulator {
             },
             Message::Tick => {
                 self.simulator.tick();
-                self.draw
-                    .push(self.simulator.get_state().iter().map(|x| x.re).collect());
+                self.draw.push(self.simulator.get_state().to_owned());
                 self.draw.update().expect("refreshing status");
                 if !self.pause {
                     const FPS: u64 = 60;
