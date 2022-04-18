@@ -16,13 +16,14 @@ fn from_property(p: &WorkerProperty, idx: usize) -> WorkerUpdate {
         2 => WorkerUpdate::Linear(p.linear),
         3 => WorkerUpdate::RecordStep(p.record_step),
         4 => WorkerUpdate::SimuStep(p.simu_step),
+        5 => WorkerUpdate::Couple(p.couple),
         _ => unreachable!(),
     }
 }
 
-pub fn from_property_array(p: WorkerProperty) -> [WorkerUpdate; 5] {
-    let mut a = [WorkerUpdate::Alpha(0.); 5];
-    (0..5).into_iter().for_each(|x| a[x] = from_property(&p, x));
+pub fn from_property_array(p: WorkerProperty) -> [WorkerUpdate; 6] {
+    let mut a = [WorkerUpdate::Alpha(0.); 6];
+    (0..6).into_iter().for_each(|x| a[x] = from_property(&p, x));
     a
 }
 
@@ -31,7 +32,8 @@ pub fn property_value_to_string(v: WorkerUpdate) -> String {
         WorkerUpdate::Alpha(v)
         | WorkerUpdate::Pump(v)
         | WorkerUpdate::Linear(v)
-        | WorkerUpdate::SimuStep(v) => format!("{:.3E}", v),
+        | WorkerUpdate::SimuStep(v)
+        | WorkerUpdate::Couple(v) => format!("{:.3E}", v),
         WorkerUpdate::RecordStep(v) => v.to_string(),
     }
 }
@@ -43,6 +45,7 @@ pub fn map_property_to_idx(p: WorkerUpdate) -> usize {
         WorkerUpdate::Linear(_) => 2,
         WorkerUpdate::RecordStep(_) => 3,
         WorkerUpdate::SimuStep(_) => 4,
+        WorkerUpdate::Couple(_) => 5,
     }
 }
 
@@ -54,5 +57,6 @@ pub fn extract_property_value(p: WorkerUpdate) -> f64 {
         WorkerUpdate::Linear(v) => v,
         WorkerUpdate::RecordStep(_) => unreachable!(),
         WorkerUpdate::SimuStep(_) => unreachable!(),
+        WorkerUpdate::Couple(v) => v,
     }
 }

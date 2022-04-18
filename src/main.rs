@@ -24,7 +24,7 @@ fn main() -> Result<()> {
 struct LleSimulator {
     simulator: Worker,
     draw: DrawData,
-    panel: [Control; 5],
+    panel: [Control; 6],
     pause: bool,
     pause_button: button::State,
     tick_button: button::State,
@@ -47,8 +47,9 @@ impl Application for LleSimulator {
                 Alpha(v) => Control::new(Alpha, "Alpha", v.into()),
                 Pump(v) => Control::new(Pump, "Pump", v.into()),
                 Linear(v) => Control::new(Linear, "Linear", v.into()),
-                RecordStep(_) => Control::new(|x| RecordStep(x as u64), "Record Step", None),
+                RecordStep(_) => Control::new(|x| RecordStep(x as u32), "Record Step", None),
                 SimuStep(_) => Control::new(SimuStep, "Simulation Step", None),
+                Couple(v) => Control::new(Couple, "Couple Coefficient", v.into()),
             }
         };
         let simulator = Worker::new();

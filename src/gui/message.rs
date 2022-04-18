@@ -40,6 +40,8 @@ impl NewValue {
         }
     }
 }
+
+#[derive(Clone, Debug)]
 pub struct Control<T = f64> {
     call_back: fn(T) -> WorkerUpdate,
     desc: String,
