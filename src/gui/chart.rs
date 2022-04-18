@@ -25,8 +25,10 @@ pub struct DrawData {
     fft: Arc<dyn Fft<f64>>,
     map: SpawnMapVisual,
     window: Option<Window>,
+    window1: Option<Window>,
     size: (usize, usize),
     buffer: Vec<u32>,
+    buffer1: Vec<u32>,
 }
 
 struct StandBy {
@@ -34,6 +36,7 @@ struct StandBy {
     data: Vec<Vec<f64>>,
     map: RawMapVisualizer,
     size: (usize, usize),
+    index: usize,
 }
 
 #[allow(unused)]
@@ -44,6 +47,7 @@ impl StandBy {
             data: Vec::new(),
             map: RawMapVisualizer::default(),
             size,
+            index: 0,
         }
     }
     fn set_size(&mut self, size: (usize, usize)) {
@@ -94,13 +98,19 @@ impl SpawnMapVisual {
         new_data: &mut Vec<Vec<Complex64>>,
         buffer_dis: &mut [u32],
     ) -> Result<bool> {
+        const MAX_RECORD_LEN: usize = 500;
         match std::mem::replace(self, SpawnMapVisual::Temp) {
             SpawnMapVisual::StandBy(mut s) => {
                 s.data.reserve(new_data.len());
-                new_data.iter_mut().for_each(|x| {
-                    let temp = mem::take(x).into_iter().map(|x| x.re).collect::<Vec<_>>();
+                mem::take(new_data).into_iter().for_each(|x| {
+                    let temp = x.into_iter().map(|x| x.re).collect::<Vec<_>>();
                     s.map.update_range(&temp);
-                    s.data.push(temp);
+                    if s.data.len() < MAX_RECORD_LEN {
+                        s.data.push(temp);
+                    } else {
+                        s.data[s.index] = temp;
+                        s.index = (s.index + 1) % MAX_RECORD_LEN;
+                    }
                 });
                 buffer_dis.clone_from_slice(&s.bitmap_buffer);
                 *self = SpawnMapVisual::Handler(s.spawn());
@@ -137,10 +147,12 @@ impl DrawData {
                 a
             },
             fft: FftPlanner::new().plan_fft_forward(data_len),
-            map: SpawnMapVisual::new((window_size.0, Self::split_area(window_size.1).1)),
+            map: SpawnMapVisual::new((window_size.0, window_size.1)),
             window: None,
+            window1: None,
             size: window_size,
             buffer: Vec::default(),
+            buffer1: Vec::default(),
         }
     }
     #[allow(unused)]
@@ -167,6 +179,36 @@ impl DrawData {
                 self.window.insert(
                     (Window::new(
                         "Status dispay",
+                        size.0,
+                        size.1,
+                        WindowOptions {
+                            scale: Scale::X1,
+                            ..WindowOptions::default()
+                        },
+                    )?),
+                )
+            }
+        };
+        let window1 = match self.window1 {
+            Some(ref mut w) => {
+                if !w.is_open() {
+                    *w = Window::new(
+                        "History display",
+                        size.0,
+                        size.1,
+                        WindowOptions {
+                            scale: Scale::X1,
+                            ..WindowOptions::default()
+                        },
+                    )?;
+                }
+                w
+            }
+            _ => {
+                self.buffer1.resize(size.0 * size.1, 0);
+                self.window1.insert(
+                    (Window::new(
+                        "History display",
                         size.0,
                         size.1,
                         WindowOptions {
@@ -212,12 +254,13 @@ impl DrawData {
                         &lower,
                     )
                     .unwrap();
-                //self.map.try_update(&mut self.data, lower_buffer)?;
+                self.map.try_update(&mut self.data, &mut self.buffer1)?;
             } else {
                 warn!("trying drawing empty data");
             }
         }
         window.update_with_buffer(&self.buffer, size.0, size.1)?;
+        window1.update_with_buffer(&self.buffer1, size.0, size.1)?;
         Ok(())
     }
     pub fn push(&mut self, new_data: Vec<Complex64>) {
