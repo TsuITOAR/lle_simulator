@@ -82,13 +82,14 @@ impl Worker {
                 as Box<dyn Fn(Complex64) -> Complex64>,
             Complex64::from(PUMP),
         );
+        use lle::num_traits::Zero;
         let lle2 = LleSolver::new(
             init2,
             STEP_DIST,
             (0, -(Complex64::i() * ALPHA + 1.)).add((2, -Complex64::i() * LINEAR / 2.)),
             Box::new(|x: Complex64| Complex64::i() * x.norm_sqr())
                 as Box<dyn Fn(Complex64) -> Complex64>,
-            Complex64::from(PUMP),
+            Complex64::zero(),
         );
         Worker {
             core: CoupledLleSolver::new(lle1, lle2, COUPLE),
