@@ -15,7 +15,6 @@ pub struct Worker {
         [Complex64; SHELL_LEN],
         lle::LinearOpAdd<(lle::DiffOrder, Complex64), (lle::DiffOrder, Complex64)>,
         Box<dyn Fn(Complex<f64>) -> Complex<f64>>,
-        Box<dyn Fn(&[Complex<f64>]) -> Complex<f64>>,
     >,
     property: WorkerProperty,
 }
@@ -92,12 +91,7 @@ impl Worker {
             Complex64::from(PUMP),
         );
         Worker {
-            core: CoupledLleSolver::new(
-                lle1,
-                lle2,
-                Box::new(|x: &[Complex<f64>]| x[0] * COUPLE / x.len() as f64)
-                    as Box<dyn Fn(&[Complex<f64>]) -> Complex<f64>>,
-            ),
+            core: CoupledLleSolver::new(lle1, lle2, COUPLE),
             property: WorkerProperty {
                 alpha: ALPHA,
                 linear: LINEAR,
@@ -144,9 +138,7 @@ impl Worker {
             }
             WorkerUpdate::Couple(value) => {
                 self.property.couple = value;
-                self.core.coup_coefficient =
-                    Box::new(move |x: &[Complex<f64>]| x[0] * value / x.len() as f64)
-                        as Box<dyn Fn(&[Complex<f64>]) -> Complex<f64>>;
+                self.core.coup_coefficient = Complex::from(value);
             }
         }
     }
