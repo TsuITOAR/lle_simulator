@@ -120,7 +120,6 @@ impl Worker {
             WorkerUpdate::Pump(value) => {
                 self.property.pump = value;
                 self.core.component1.constant = Complex64::from(value).into();
-                self.core.component2.constant = Complex64::from(value).into();
             }
             WorkerUpdate::Linear(value) => {
                 self.property.linear = value;
@@ -156,7 +155,7 @@ impl Worker {
         });
         self.core.evolve_n(self.property.record_step);
     }
-    pub fn get_state(&self) -> &[Complex64] {
-        self.core.state()
+    pub fn get_state(&self) -> (&[Complex64], &[Complex64]) {
+        (self.core.component1.state(), self.core.component2.state())
     }
 }

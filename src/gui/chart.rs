@@ -178,7 +178,7 @@ impl DrawData {
                 self.buffer.resize(size.0 * size.1, 0);
                 self.window.insert(
                     (Window::new(
-                        "Status dispay",
+                        "Status display",
                         size.0,
                         size.1,
                         WindowOptions {

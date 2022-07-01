@@ -23,7 +23,8 @@ fn main() -> Result<()> {
 
 struct LleSimulator {
     simulator: Worker,
-    draw: DrawData,
+    draw1: DrawData,
+    draw2: DrawData,
     panel: [Control; 6],
     pause: bool,
     pause_button: button::State,
@@ -55,7 +56,8 @@ impl Application for LleSimulator {
         let simulator = Worker::new();
         (
             Self {
-                draw: DrawData::new(simulator.get_state().len(), (WIDTH, HEIGHT)),
+                draw1: DrawData::new(simulator.get_state().0.len(), (WIDTH, HEIGHT)),
+                draw2: DrawData::new(simulator.get_state().1.len(), (WIDTH, HEIGHT)),
                 simulator,
                 panel: array_init::from_iter(
                     IntoIterator::into_iter(from_property_array(proper))
@@ -107,8 +109,11 @@ impl Application for LleSimulator {
             },
             Message::Tick => {
                 self.simulator.tick();
-                self.draw.push(self.simulator.get_state().to_owned());
-                self.draw.update().expect("refreshing status");
+                let state = self.simulator.get_state();
+                self.draw1.push(state.0.to_owned());
+                self.draw1.update().expect("refreshing status 1");
+                self.draw2.push(state.1.to_owned());
+                self.draw2.update().expect("refreshing status 2");
                 if !self.pause {
                     const FPS: u64 = 60;
                     let duration: Duration = Duration::from_secs_f32(1. / FPS as f32);
