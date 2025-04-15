@@ -10,15 +10,15 @@ description = "Lugiato-Lefever Equation Simulator use Rust & Iced"
 
 [dependencies]
 lle = { path = "../lle" }
-rand = { version = "^0.8" }
+rand = { version = "^0.9" }
 plotters = "^0.3"
 plotters-bitmap = "^0.3"
 jkplot = { path = "../jkplot", default-features = false }
 anyhow = "^1"
-iced = { version = "^0.3", features = ["tokio", "debug"] }
+iced = { version = "^0.13", features = ["tokio", "debug"] }
 log = "^0.4"
-env_logger = "^0.9"
+env_logger = "^0.11"
 array-init = "^2"
 minifb = "*"
-tokio = "*"
+tokio = { version = "*", features = ["rt-multi-thread"] }
 rustfft = "*"

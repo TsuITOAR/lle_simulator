@@ -1,9 +1,12 @@
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
+use iced::alignment::{Horizontal, Vertical};
+use iced::executor;
+use iced::widget::{button, column, container, row, text, Button, Column, Container, Row};
+use iced::Task;
 use iced::{
-    button, executor, Align, Application, Button, Clipboard, Column, Command, Container, Length,
-    Row, Settings,
+    application, window, Alignment, Application, Element, Length, Settings, Subscription, Theme,
 };
 use lle_simulator::*;
 
@@ -15,9 +18,17 @@ use gui::*;
 
 fn main() -> Result<()> {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Warn)
+        .filter_level(log::LevelFilter::Info)
         .init();
-    LleSimulator::run(Settings::default())?;
+
+    // 使用新的应用程序构建API
+    let app = iced::application(
+        LleSimulator::title,
+        LleSimulator::update,
+        LleSimulator::view,
+    );
+    app.run()?;
+
     Ok(())
 }
 
@@ -27,17 +38,11 @@ struct LleSimulator {
     draw2: DrawData,
     panel: [Control; 6],
     pause: bool,
-    pause_button: button::State,
-    tick_button: button::State,
     last_update: Option<Instant>,
 }
 
-impl Application for LleSimulator {
-    type Executor = executor::Default;
-    type Flags = ();
-    type Message = Message;
-
-    fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
+impl Default for LleSimulator {
+    fn default() -> Self {
         const WIDTH: usize = 640;
         const HEIGHT: usize = 640;
         use WorkerUpdate::*;
@@ -54,34 +59,30 @@ impl Application for LleSimulator {
             }
         };
         let simulator = Worker::new();
-        (
-            Self {
-                draw1: DrawData::new(simulator.get_state().0.len(), (WIDTH, HEIGHT)),
-                draw2: DrawData::new(simulator.get_state().1.len(), (WIDTH, HEIGHT)),
-                simulator,
-                panel: array_init::from_iter(
-                    IntoIterator::into_iter(from_property_array(proper))
-                        .map(|x| init_from_property(x)),
-                )
-                .expect("initializing state"),
-                pause: true,
-                pause_button: button::State::new(),
-                tick_button: button::State::new(),
-                last_update: None,
-            },
-            Command::none(),
-        )
+        Self {
+            draw1: DrawData::new(simulator.get_state().0.len(), (WIDTH, HEIGHT)),
+            draw2: DrawData::new(simulator.get_state().1.len(), (WIDTH, HEIGHT)),
+            simulator,
+            panel: array_init::from_iter(
+                IntoIterator::into_iter(from_property_array(proper)).map(|x| init_from_property(x)),
+            )
+            .expect("initializing state"),
+            pause: true,
+            last_update: None,
+        }
     }
+}
 
+type Executor = executor::Default;
+type Flags = ();
+
+impl LleSimulator {
     fn title(&self) -> String {
         "Lle Simulator".into()
     }
 
-    fn update(
-        &mut self,
-        message: Self::Message,
-        _clipboard: &mut Clipboard,
-    ) -> Command<Self::Message> {
+    fn update(&mut self, message: Message) -> Task<Message> {
+        log::info!("update message: {:?}", message);
         match message {
             Message::Input(v) => {
                 v.apply_or_warn(|v| self.simulator.set_property(v));
@@ -122,70 +123,63 @@ impl Application for LleSimulator {
                         .last_update
                         .replace(now)
                         .map(|last| last + duration - now)
-                        .map_or(async { Message::Tick }.into(), |x| {
-                            async move {
-                                tokio::time::sleep(x).await;
-                                Message::Tick
-                            }
-                            .into()
+                        .map_or(Task::perform(async {}, |_| Message::Tick), |x| {
+                            Task::perform(
+                                async move {
+                                    tokio::time::sleep(x).await;
+                                },
+                                |_| Message::Tick,
+                            )
                         });
                 }
             }
             Message::Pause => {
                 self.pause = !self.pause;
                 if !self.pause {
-                    return Command::from(async { Message::Tick });
+                    return Task::perform(async {}, |_| Message::Tick);
                 }
             }
         };
-        Command::none()
+        Task::none()
     }
 
-    fn view(&mut self) -> iced::Element<'_, Self::Message> {
-        let mut control = Column::new()
+    fn view(&self) -> Element<'_, Message> {
+        let mut control = column![]
             .spacing(20)
-            .align_items(Align::Center)
+            .align_x(Alignment::Center)
             .width(Length::Fill)
             .height(Length::Fill);
+
         let proper = self.simulator.get_property();
         for (c, w) in self
             .panel
-            .iter_mut()
+            .iter()
             .zip(IntoIterator::into_iter(from_property_array(proper)))
         {
             control = control.push(c.view(w));
         }
+
+        let pause_button = button(text(if self.pause { "Run" } else { "Pause" }))
+            .on_press(Message::Pause)
+            .padding(10);
+
+        let tick_button = button(text("Step")).on_press(Message::Tick).padding(10);
+
         control = control.push(
-            Row::new()
-                .align_items(Align::Center)
-                .width(Length::Shrink)
-                .push(
-                    Container::new(
-                        Button::new(
-                            &mut self.pause_button,
-                            iced::Text::new(if self.pause { "Run" } else { "Pause" }),
-                        )
-                        .on_press(Message::Pause)
-                        .padding(10),
-                    )
-                    .padding(5),
-                )
-                .push(
-                    Container::new(
-                        Button::new(&mut self.tick_button, iced::Text::new("Step"))
-                            .on_press(Message::Tick)
-                            .padding(10),
-                    )
-                    .padding(5),
-                ),
+            row![
+                container(pause_button).padding(5),
+                container(tick_button).padding(5)
+            ]
+            .align_y(Alignment::Center)
+            .width(Length::Shrink),
         );
 
-        Container::new(control)
+        container(control)
             .width(Length::Fill)
             .height(Length::Fill)
             .padding(5)
-            .center_x()
-            .center_y()
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center)
             .into()
     }
 }
