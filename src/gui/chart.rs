@@ -8,7 +8,7 @@ use std::{
 
 use jkplot::{RawAnimator, RawMapVisualizer};
 use lle::num_complex::Complex64;
-use minifb::{Scale, Window, WindowOptions};
+use minifb::{Window, WindowOptions};
 use plotters::prelude::*;
 use rustfft::{Fft, FftPlanner};
 
@@ -162,60 +162,32 @@ impl DrawData {
         let window = match self.window {
             Some(ref mut w) => {
                 if !w.is_open() {
-                    *w = Window::new(
-                        "Status display",
-                        size.0,
-                        size.1,
-                        WindowOptions {
-                            scale: Scale::X1,
-                            ..WindowOptions::default()
-                        },
-                    )?;
+                    *w = Window::new("Status display", size.0, size.1, WindowOptions::default())
+                        .inspect_err(|x| log::error!("{x}"))?;
                 }
                 w
             }
             _ => {
                 self.buffer.resize(size.0 * size.1, 0);
                 self.window.insert(
-                    (Window::new(
-                        "Status display",
-                        size.0,
-                        size.1,
-                        WindowOptions {
-                            scale: Scale::X1,
-                            ..WindowOptions::default()
-                        },
-                    )?),
+                    (Window::new("Status display", size.0, size.1, WindowOptions::default())
+                        .inspect_err(|x| log::error!("{x}"))?),
                 )
             }
         };
         let window1 = match self.window1 {
             Some(ref mut w) => {
                 if !w.is_open() {
-                    *w = Window::new(
-                        "History display",
-                        size.0,
-                        size.1,
-                        WindowOptions {
-                            scale: Scale::X1,
-                            ..WindowOptions::default()
-                        },
-                    )?;
+                    *w = Window::new("History display", size.0, size.1, WindowOptions::default())
+                        .inspect_err(|x| log::error!("{x}"))?;
                 }
                 w
             }
             _ => {
                 self.buffer1.resize(size.0 * size.1, 0);
                 self.window1.insert(
-                    (Window::new(
-                        "History display",
-                        size.0,
-                        size.1,
-                        WindowOptions {
-                            scale: Scale::X1,
-                            ..WindowOptions::default()
-                        },
-                    )?),
+                    (Window::new("History display", size.0, size.1, WindowOptions::default())
+                        .inspect_err(|x| log::error!("{x}"))?),
                 )
             }
         };
@@ -259,8 +231,14 @@ impl DrawData {
                 warn!("trying drawing empty data");
             }
         }
-        window.update_with_buffer(&self.buffer, size.0, size.1)?;
-        window1.update_with_buffer(&self.buffer1, size.0, size.1)?;
+        assert!(self.buffer.len() == size.0 * size.1);
+        assert!(self.buffer1.len() == size.0 * size.1);
+        window
+            .update_with_buffer(&self.buffer, size.0, size.1)
+            .inspect_err(|x| log::error!("{x}"))?;
+        window1
+            .update_with_buffer(&self.buffer1, size.0, size.1)
+            .inspect_err(|x| log::error!("{x}"))?;
         Ok(())
     }
     pub fn push(&mut self, new_data: Vec<Complex64>) {

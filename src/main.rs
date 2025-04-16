@@ -1,13 +1,9 @@
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use iced::alignment::{Horizontal, Vertical};
-use iced::executor;
-use iced::widget::{button, column, container, row, text, Button, Column, Container, Row};
+use iced::widget::{button, column, container, row, text, Column, Container, Row};
 use iced::Task;
-use iced::{
-    application, window, Alignment, Application, Element, Length, Settings, Subscription, Theme,
-};
+use iced::{Alignment, Element, Length};
 use lle_simulator::*;
 
 #[allow(unused)]
@@ -72,9 +68,6 @@ impl Default for LleSimulator {
         }
     }
 }
-
-type Executor = executor::Default;
-type Flags = ();
 
 impl LleSimulator {
     fn title(&self) -> String {

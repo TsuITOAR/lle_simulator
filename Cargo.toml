@@ -19,6 +19,6 @@ iced = { version = "^0.13", features = ["tokio", "debug"] }
 log = "^0.4"
 env_logger = "^0.11"
 array-init = "^2"
-minifb = "*"
+minifb = "^0.28"
 tokio = { version = "*", features = ["rt-multi-thread"] }
 rustfft = "*"
